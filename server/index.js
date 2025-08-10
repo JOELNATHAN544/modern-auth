@@ -288,7 +288,8 @@ app.post('/api/transactions', async (req, res) => {
       });
 
       // In a real implementation, send OTP via SMS/email
-      console.log(`OTP for transaction ${transaction.id}: ${otp}`);
+      console.log(`🔐 OTP for transaction ${transaction.id}: ${otp}`);
+      console.log(`📱 Demo OTP: ${otp} (valid for 5 minutes)`);
 
       res.json({
         requiresStepUp: true,
