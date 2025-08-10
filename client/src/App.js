@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useNavigate } from 'react-router-dom';
-import { Shield, BarChart3, CreditCard, Home, LogOut, User } from 'lucide-react';
+import { Shield, BarChart3, CreditCard, Home, LogOut } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import AuthPage from './components/AuthPage';
 import Dashboard from './components/Dashboard';
 import TransactionPage from './components/TransactionPage';
 import AnalyticsPage from './components/AnalyticsPage';
+import WebAuthnTest from './components/WebAuthnTest';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -92,6 +93,10 @@ function App() {
               <BarChart3 size={16} />
               Analytics
             </Link>
+            <Link to="/test" className="btn btn-secondary">
+              <Shield size={16} />
+              WebAuthn Test
+            </Link>
           </div>
         </div>
       </div>
@@ -102,6 +107,7 @@ function App() {
           <Route path="/dashboard" element={<Dashboard user={user} />} />
           <Route path="/transactions" element={<TransactionPage user={user} />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
+          <Route path="/test" element={<WebAuthnTest />} />
           <Route path="/" element={<Dashboard user={user} />} />
         </Routes>
       </div>

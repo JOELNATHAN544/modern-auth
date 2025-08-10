@@ -292,8 +292,19 @@ const TransactionPage = ({ user }) => {
                     required
                   />
                   <p style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
-                    Check your console for the demo OTP
+                    Check your browser console (F12) or terminal for the demo OTP
                   </p>
+                  <div style={{ 
+                    marginTop: '8px', 
+                    padding: '8px 12px', 
+                    background: '#fff3cd', 
+                    border: '1px solid #ffeaa7',
+                    borderRadius: '4px',
+                    color: '#856404',
+                    fontSize: '12px'
+                  }}>
+                    💡 <strong>Tip:</strong> Press F12 → Console tab to see the OTP
+                  </div>
                 </div>
 
                 <div className="flex gap-3">

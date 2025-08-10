@@ -36,7 +36,10 @@ app.use(cors({
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.headers['x-forwarded-for'] === undefined
 });
 app.use(limiter);
 
@@ -52,6 +55,9 @@ app.use((req, res, next) => {
   if (req.path === '/api/auth/signup' && req.method === 'POST') {
     const authType = req.body.authType || 'password';
     analytics.signupStarted[authType]++;
+  }
+  if (req.path === '/api/auth/register/options' && req.method === 'POST') {
+    analytics.signupStarted.passkey++;
   }
   next();
 });
@@ -282,7 +288,8 @@ app.post('/api/transactions', async (req, res) => {
       });
 
       // In a real implementation, send OTP via SMS/email
-      console.log(`OTP for transaction ${transaction.id}: ${otp}`);
+      console.log(`🔐 OTP for transaction ${transaction.id}: ${otp}`);
+      console.log(`📱 Demo OTP: ${otp} (valid for 5 minutes)`);
 
       res.json({
         requiresStepUp: true,
