@@ -13,6 +13,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cron = require('node-cron');
 
+// Import database models
+const User = require('./models/User');
+const Transaction = require('./models/Transaction');
+const WebAuthnCredential = require('./models/WebAuthnCredential');
+const { testConnection } = require('./config/database');
+
 const app = express();
 const PORT = process.env.PORT || 3001;
 
@@ -21,13 +27,13 @@ const rpName = 'Modern Auth Demo';
 const rpID = process.env.NODE_ENV === 'production' ? 'yourdomain.com' : 'localhost';
 const origin = process.env.NODE_ENV === 'production' ? 'https://yourdomain.com' : 'http://localhost:3000';
 
-// In-memory storage (in production, use a proper database)
-const users = new Map();
+// In-memory storage for challenges only (these are temporary)
 const challenges = new Map();
+
+// Analytics tracking (will be moved to database)
 const analytics = {
   signupStarted: { password: 0, passkey: 0 },
   signupCompleted: { password: 0, passkey: 0 },
-  transactions: [],
   stepUpAuth: { triggered: 0, completed: 0 }
 };
 
@@ -91,17 +97,16 @@ app.post('/api/auth/register/options', async (req, res) => {
     }
 
     // Check if user already exists
-    if (users.has(email)) {
+    const existingUser = await User.findByEmail(email);
+    if (existingUser) {
       return res.status(400).json({ error: 'User already exists' });
     }
 
-    const user = {
-      id: uuidv4(),
+    const user = await User.create({
       username,
       email,
-      credentials: [],
-      createdAt: new Date()
-    };
+      auth_type: 'passkey'
+    });
 
     const options = await generateRegistrationOptions({
       rpName,
@@ -150,14 +155,14 @@ app.post('/api/auth/register/verify', async (req, res) => {
 
     if (verification.verified) {
       const user = expectedChallengeData.user;
-      user.credentials.push({
-        id: verification.registrationInfo.credentialID,
-        publicKey: verification.registrationInfo.credentialPublicKey,
+      await WebAuthnCredential.create({
+        user_id: user.id,
+        credential_id: verification.registrationInfo.credentialID,
+        public_key: verification.registrationInfo.credentialPublicKey,
         counter: verification.registrationInfo.counter,
         transports: credential.response.transports || []
       });
 
-      users.set(user.email, user);
       challenges.delete(expectedChallenge);
 
       // Track successful passkey registration
@@ -188,15 +193,16 @@ app.post('/api/auth/login/options', async (req, res) => {
   try {
     const { email } = req.body;
     
-    const user = users.get(email);
+    const user = await User.findByEmail(email);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    const credentials = await WebAuthnCredential.findByUserId(user.id);
     const options = await generateAuthenticationOptions({
       rpID,
-      allowCredentials: user.credentials.map(cred => ({
-        id: cred.id,
+      allowCredentials: credentials.map(cred => ({
+        id: cred.credential_id,
         type: 'public-key',
         transports: cred.transports
       })),
@@ -226,11 +232,9 @@ app.post('/api/auth/login/verify', async (req, res) => {
     }
 
     const user = expectedChallengeData.user;
-    const userCredential = user.credentials.find(
-      cred => cred.id.toString() === credential.id
-    );
+    const userCredential = await WebAuthnCredential.findByCredentialId(credential.id);
 
-    if (!userCredential) {
+    if (!userCredential || userCredential.user_id !== user.id) {
       return res.status(400).json({ error: 'Credential not found' });
     }
 
@@ -240,16 +244,15 @@ app.post('/api/auth/login/verify', async (req, res) => {
       expectedOrigin: origin,
       expectedRPID: rpID,
       authenticator: {
-        credentialPublicKey: userCredential.publicKey,
-        credentialID: userCredential.id,
+        credentialPublicKey: userCredential.public_key,
+        credentialID: userCredential.credential_id,
         counter: userCredential.counter
       }
     });
 
     if (verification.verified) {
       // Update counter
-      userCredential.counter = verification.authenticationInfo.newCounter;
-      users.set(user.email, user);
+      await WebAuthnCredential.updateCounter(userCredential.id, verification.authenticationInfo.newCounter);
       challenges.delete(expectedChallenge);
 
       const token = jwt.sign(
@@ -281,17 +284,16 @@ app.post('/api/transactions', async (req, res) => {
       return res.status(400).json({ error: 'Amount, description, and userId are required' });
     }
 
-    const transaction = {
-      id: uuidv4(),
+    const transaction = await Transaction.create({
+      user_id: userId,
       amount: parseFloat(amount),
       description,
-      userId,
-      timestamp: new Date(),
-      status: 'pending'
-    };
+      ip_address: req.ip,
+      user_agent: req.get('User-Agent')
+    });
 
     // PSD3 threshold check (€150)
-    if (transaction.amount > 150) {
+    if (transaction.requires_stepup) {
       analytics.stepUpAuth.triggered++;
       
       // Generate OTP for step-up authentication
@@ -317,8 +319,7 @@ app.post('/api/transactions', async (req, res) => {
       });
     } else {
       // Transaction proceeds without step-up
-      transaction.status = 'completed';
-      analytics.transactions.push(transaction);
+      await Transaction.updateStatus(transaction.id, 'completed');
       
       res.json({
         requiresStepUp: false,
@@ -352,8 +353,8 @@ app.post('/api/transactions/stepup', async (req, res) => {
 
     // OTP verified successfully
     const transaction = challengeData.transaction;
-    transaction.status = 'completed';
-    analytics.transactions.push(transaction);
+    await Transaction.updateStatus(transaction.id, 'completed');
+    await Transaction.markStepupCompleted(transaction.id);
     analytics.stepUpAuth.completed++;
     
     challenges.delete(otp);
@@ -376,11 +377,12 @@ app.get('/api/transactions', async (req, res) => {
     
     if (userId) {
       // Get transactions for specific user
-      const userTransactions = analytics.transactions.filter(t => t.userId === userId);
+      const userTransactions = await Transaction.findByUserId(userId);
       res.json(userTransactions);
     } else {
       // Get all transactions (for admin/analytics purposes)
-      res.json(analytics.transactions);
+      const allTransactions = await Transaction.getAll();
+      res.json(allTransactions);
     }
   } catch (error) {
     console.error('Get transactions error:', error);
@@ -389,39 +391,48 @@ app.get('/api/transactions', async (req, res) => {
 });
 
 // PART 3: Analytics and Conversion Tracking
-app.get('/api/analytics/conversion', (req, res) => {
-  const passwordConversion = analytics.signupStarted.password > 0 
-    ? (analytics.signupCompleted.password / analytics.signupStarted.password) * 100 
-    : 0;
-  
-  const passkeyConversion = analytics.signupStarted.passkey > 0 
-    ? (analytics.signupCompleted.passkey / analytics.signupStarted.passkey) * 100 
-    : 0;
-  
-  const conversionDelta = passkeyConversion - passwordConversion;
+app.get('/api/analytics/conversion', async (req, res) => {
+  try {
+    const passwordConversion = analytics.signupStarted.password > 0 
+      ? (analytics.signupCompleted.password / analytics.signupStarted.password) * 100 
+      : 0;
+    
+    const passkeyConversion = analytics.signupStarted.passkey > 0 
+      ? (analytics.signupCompleted.passkey / analytics.signupStarted.passkey) * 100 
+      : 0;
+    
+    const conversionDelta = passkeyConversion - passwordConversion;
 
-  res.json({
-    password: {
-      started: analytics.signupStarted.password,
-      completed: analytics.signupCompleted.password,
-      conversionRate: passwordConversion.toFixed(2) + '%'
-    },
-    passkey: {
-      started: analytics.signupStarted.passkey,
-      completed: analytics.signupCompleted.passkey,
-      conversionRate: passkeyConversion.toFixed(2) + '%'
-    },
-    delta: {
-      percentage: conversionDelta.toFixed(2) + '%',
-      improvement: conversionDelta > 0 ? 'Passkeys improve conversion' : 'Passkeys reduce conversion'
-    },
-    stepUpAuth: analytics.stepUpAuth,
-    totalTransactions: analytics.transactions.length
-  });
+    // Get transaction stats from database
+    const transactionStats = await Transaction.getStats();
+
+    res.json({
+      password: {
+        started: analytics.signupStarted.password,
+        completed: analytics.signupCompleted.password,
+        conversionRate: passwordConversion.toFixed(2) + '%'
+      },
+      passkey: {
+        started: analytics.signupStarted.passkey,
+        completed: analytics.signupCompleted.passkey,
+        conversionRate: passkeyConversion.toFixed(2) + '%'
+      },
+      delta: {
+        percentage: conversionDelta.toFixed(2) + '%',
+        improvement: conversionDelta > 0 ? 'Passkeys improve conversion' : 'Passkeys reduce conversion'
+      },
+      stepUpAuth: analytics.stepUpAuth,
+      totalTransactions: transactionStats.total_transactions || 0,
+      transactionStats: transactionStats
+    });
+  } catch (error) {
+    console.error('Analytics error:', error);
+    res.status(500).json({ error: 'Failed to fetch analytics' });
+  }
 });
 
 // Clean up expired challenges every hour
-cron.schedule('0 * * * *', () => {
+cron.schedule('0 * * * *', async () => {
   const now = new Date();
   for (const [key, challenge] of challenges.entries()) {
     if (challenge.expiry && now > challenge.expiry) {
@@ -431,8 +442,31 @@ cron.schedule('0 * * * *', () => {
   console.log('Cleaned up expired challenges');
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-  console.log(`WebAuthn RP ID: ${rpID}`);
-  console.log(`Origin: ${origin}`);
-});
+// Start server with database connection check
+const startServer = async () => {
+  try {
+    // Test database connection
+    console.log('🔌 Testing database connection...');
+    const dbConnected = await testConnection();
+    
+    if (!dbConnected) {
+      console.error('❌ Failed to connect to database. Server will not start.');
+      process.exit(1);
+    }
+    
+    console.log('✅ Database connected successfully');
+    
+    // Start the server
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`🔐 WebAuthn RP ID: ${rpID}`);
+      console.log(`🌐 Origin: ${origin}`);
+      console.log(`💾 Database: Connected`);
+    });
+  } catch (error) {
+    console.error('❌ Server startup failed:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
