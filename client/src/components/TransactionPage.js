@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { CreditCard, Lock, Euro, AlertTriangle, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
@@ -13,6 +13,21 @@ const TransactionPage = ({ user }) => {
   const [otp, setOtp] = useState('');
   const [currentTransaction, setCurrentTransaction] = useState(null);
   const [transactions, setTransactions] = useState([]);
+
+  // Fetch transaction history on component mount
+  const fetchTransactions = useCallback(async () => {
+    try {
+      const response = await axios.get(`/api/transactions?userId=${user.id}`);
+      setTransactions(response.data);
+    } catch (error) {
+      console.error('Failed to fetch transactions:', error);
+      // Don't show error toast for this, just log it
+    }
+  }, [user.id]);
+
+  useEffect(() => {
+    fetchTransactions();
+  }, [fetchTransactions]);
 
   const handleInputChange = (e) => {
     setFormData({
@@ -40,6 +55,8 @@ const TransactionPage = ({ user }) => {
         setTransactions(prev => [response.data.transaction, ...prev]);
         setFormData({ amount: '', description: '' });
         toast.success('Transaction completed successfully!');
+        // Refresh transaction list
+        fetchTransactions();
       }
     } catch (error) {
       toast.error(error.response?.data?.error || 'Transaction failed');
@@ -65,6 +82,8 @@ const TransactionPage = ({ user }) => {
         setCurrentTransaction(null);
         setFormData({ amount: '', description: '' });
         toast.success('Step-up authentication successful!');
+        // Refresh transaction list
+        fetchTransactions();
       }
     } catch (error) {
       toast.error(error.response?.data?.error || 'Step-up verification failed');
