@@ -9,6 +9,7 @@ const {
   verifyAuthenticationResponse
 } = require('@simplewebauthn/server');
 const { v4: uuidv4 } = require('uuid');
+const { v5: uuidv5 } = require('uuid');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const cron = require('node-cron');
@@ -284,19 +285,25 @@ app.post('/api/transactions', async (req, res) => {
       return res.status(400).json({ error: 'Amount, description, and userId are required' });
     }
 
-    // Ensure the user exists (support demo user flows)
-    let user = await User.findById(userId);
-    if (!user) {
-      // If this looks like a demo user, create it lazily
-      if (String(userId).startsWith('demo-user')) {
-        user = await User.ensureDemoUser(userId);
-      } else {
+    // Resolve user ID: if not a UUID, treat as demo and map to deterministic UUID
+    const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+    let resolvedUserId = userId;
+    let user;
+    if (!uuidRegex.test(String(userId))) {
+      // Map demo/external ID to deterministic UUID and ensure user exists
+      user = await User.ensureDemoUser(String(userId));
+      resolvedUserId = user.id;
+    } else {
+      user = await User.findById(userId);
+      if (!user) {
         return res.status(400).json({ error: 'User not found' });
       }
     }
 
+    console.log('Creating transaction for user:', { inputUserId: userId, resolvedUserId: user.id });
+
     const transaction = await Transaction.create({
-      user_id: user.id,
+      user_id: resolvedUserId,
       amount: parseFloat(amount),
       description,
       ip_address: req.ip,
@@ -387,8 +394,10 @@ app.get('/api/transactions', async (req, res) => {
     const { userId } = req.query;
     
     if (userId) {
-      // Get transactions for specific user
-      const userTransactions = await Transaction.findByUserId(userId);
+      // Resolve non-UUID demo IDs
+      const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$/;
+      const resolvedUserId = uuidRegex.test(String(userId)) ? String(userId) : uuidv5(String(userId), uuidv5.DNS);
+      const userTransactions = await Transaction.findByUserId(resolvedUserId);
       res.json(userTransactions);
     } else {
       // Get all transactions (for admin/analytics purposes)
