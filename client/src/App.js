@@ -66,7 +66,8 @@ function App() {
       gap: '8px',
       fontSize: '14px',
       fontWeight: isActive ? '600' : '400',
-      cursor: 'pointer'
+      cursor: 'pointer',
+      className: `nav-tab ${isActive ? 'active' : ''}`
     };
   };
 
