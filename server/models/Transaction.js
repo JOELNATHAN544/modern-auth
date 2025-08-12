@@ -63,8 +63,8 @@ class Transaction {
   static async updateStatus(id, status) {
     const sql = `
       UPDATE transactions 
-      SET status = $2, 
-          completed_at = CASE WHEN $2 = 'completed' THEN CURRENT_TIMESTAMP ELSE completed_at END
+      SET status = $2::varchar, 
+          completed_at = CASE WHEN $2::varchar = 'completed' THEN CURRENT_TIMESTAMP ELSE completed_at END
       WHERE id = $1
       RETURNING *
     `;
