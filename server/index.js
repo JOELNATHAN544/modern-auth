@@ -284,8 +284,19 @@ app.post('/api/transactions', async (req, res) => {
       return res.status(400).json({ error: 'Amount, description, and userId are required' });
     }
 
+    // Ensure the user exists (support demo user flows)
+    let user = await User.findById(userId);
+    if (!user) {
+      // If this looks like a demo user, create it lazily
+      if (String(userId).startsWith('demo-user')) {
+        user = await User.ensureDemoUser(userId);
+      } else {
+        return res.status(400).json({ error: 'User not found' });
+      }
+    }
+
     const transaction = await Transaction.create({
-      user_id: userId,
+      user_id: user.id,
       amount: parseFloat(amount),
       description,
       ip_address: req.ip,
