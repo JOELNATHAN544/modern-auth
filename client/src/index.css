@@ -266,6 +266,7 @@ code {
 /* Navigation tab hover effects */
 .nav-tab {
   transition: all 0.2s ease-in-out;
+  position: relative;
 }
 
 .nav-tab:hover {
@@ -274,9 +275,14 @@ code {
   transform: translateY(-1px);
 }
 
+.nav-tab.active {
+  box-shadow: 0 0 10px rgba(0, 123, 255, 0.3);
+}
+
 .nav-tab.active:hover {
   background: #0056b3 !important;
   border-color: #0056b3 !important;
+  box-shadow: 0 0 15px rgba(0, 123, 255, 0.4);
 }
 
 @media (max-width: 768px) {
