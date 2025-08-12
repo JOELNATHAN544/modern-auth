@@ -65,7 +65,8 @@ function App() {
       alignItems: 'center',
       gap: '8px',
       fontSize: '14px',
-      fontWeight: isActive ? '600' : '400'
+      fontWeight: isActive ? '600' : '400',
+      cursor: 'pointer'
     };
   };
 
