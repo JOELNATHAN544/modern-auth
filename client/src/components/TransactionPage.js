@@ -48,7 +48,8 @@ const TransactionPage = ({ user }) => {
       });
 
       if (response.data.requiresStepUp) {
-        setCurrentTransaction(response.data);
+        // Preserve amount/description for display in modal
+        setCurrentTransaction({ ...response.data, amount: parseFloat(formData.amount), description: formData.description });
         setStepUpModal(true);
         toast.success('Step-up authentication required for this transaction');
       } else {
@@ -93,7 +94,8 @@ const TransactionPage = ({ user }) => {
   };
 
   const getTransactionStatus = (transaction) => {
-    if (transaction.amount > 150) {
+    const amt = Number(transaction.amount);
+    if (amt > 150) {
       return { status: 'High Value', color: 'warning', icon: <AlertTriangle size={16} /> };
     }
     return { status: 'Standard', color: 'success', icon: <CheckCircle size={16} /> };
@@ -231,6 +233,8 @@ const TransactionPage = ({ user }) => {
             <div className="space-y-3">
               {transactions.map((transaction) => {
                 const status = getTransactionStatus(transaction);
+                const amt = Number(transaction.amount) || 0;
+                const createdAt = transaction.created_at || transaction.timestamp;
                 return (
                   <div 
                     key={transaction.id} 
@@ -242,7 +246,7 @@ const TransactionPage = ({ user }) => {
                     }}
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <span style={{ fontWeight: '600' }}>€{transaction.amount.toFixed(2)}</span>
+                      <span style={{ fontWeight: '600' }}>€{amt.toFixed(2)}</span>
                       <span className={`badge badge-${status.color}`}>
                         {status.icon}
                         {status.status}
@@ -253,7 +257,7 @@ const TransactionPage = ({ user }) => {
                     </p>
                     <div className="flex items-center justify-between">
                       <span style={{ fontSize: '12px', color: '#888' }}>
-                        {new Date(transaction.timestamp).toLocaleString()}
+                        {createdAt ? new Date(createdAt).toLocaleString() : ''}
                       </span>
                       <span style={{ fontSize: '12px', color: '#888' }}>
                         ID: {transaction.id.slice(0, 8)}...
@@ -288,7 +292,7 @@ const TransactionPage = ({ user }) => {
                   <span style={{ fontWeight: '600' }}>High-Value Transaction</span>
                 </div>
                 <p style={{ fontSize: '14px', color: '#ccc' }}>
-                  Amount: <strong>€{currentTransaction?.amount}</strong><br />
+                  Amount: <strong>€{Number(currentTransaction?.amount || 0).toFixed(2)}</strong><br />
                   Description: {currentTransaction?.description}
                 </p>
               </div>
