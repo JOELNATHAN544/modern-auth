@@ -436,3 +436,4 @@ app.listen(PORT, () => {
   console.log(`WebAuthn RP ID: ${rpID}`);
   console.log(`Origin: ${origin}`);
 });
+
