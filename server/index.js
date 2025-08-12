@@ -371,7 +371,7 @@ app.post('/api/transactions/stepup', async (req, res) => {
 
     // OTP verified successfully
     const transaction = challengeData.transaction;
-    await Transaction.updateStatus(transaction.id, 'completed');
+    const updatedTransaction = await Transaction.updateStatus(transaction.id, 'completed');
     await Transaction.markStepupCompleted(transaction.id);
     analytics.stepUpAuth.completed++;
     
@@ -379,7 +379,7 @@ app.post('/api/transactions/stepup', async (req, res) => {
 
     res.json({
       success: true,
-      transaction: transaction,
+      transaction: updatedTransaction,
       message: 'Step-up authentication successful, transaction completed'
     });
   } catch (error) {
