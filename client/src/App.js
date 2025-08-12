@@ -117,7 +117,7 @@ function App() {
       {/* Main Navigation */}
       <div style={{ background: '#0f0f0f', borderBottom: '1px solid #333' }}>
         <div className="container">
-          <div className="flex gap-4" style={{ padding: '16px 0' }}>
+          <div className="flex gap-4" style={{ padding: '16px 0', position: 'relative' }}>
             <Link to="/dashboard" style={getTabStyles('/dashboard')}>
               <Home size={16} />
               Dashboard
