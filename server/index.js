@@ -340,7 +340,7 @@ app.post('/api/transactions', async (req, res) => {
     }
   } catch (error) {
     console.error('Transaction error:', error);
-    res.status(500).json({ error: 'Failed to process transaction' });
+    res.status(500).json({ error: 'Failed to process transaction', message: error.message });
   }
 });
 
