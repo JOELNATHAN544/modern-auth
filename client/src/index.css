@@ -263,6 +263,22 @@ code {
   color: #fff;
 }
 
+/* Navigation tab hover effects */
+.nav-tab {
+  transition: all 0.2s ease-in-out;
+}
+
+.nav-tab:hover {
+  background: #2a2a2a !important;
+  border-color: #666 !important;
+  transform: translateY(-1px);
+}
+
+.nav-tab.active:hover {
+  background: #0056b3 !important;
+  border-color: #0056b3 !important;
+}
+
 @media (max-width: 768px) {
   .container {
     padding: 0 16px;
