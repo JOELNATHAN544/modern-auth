@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Routes, Route, Link, useNavigate } from 'react-router-dom';
+import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
 import { Shield, BarChart3, CreditCard, Home, LogOut } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -13,6 +13,7 @@ function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     // Check if user is logged in
@@ -32,6 +33,42 @@ function App() {
     setUser(null);
     navigate('/');
     toast.success('Logged out successfully');
+  };
+
+  // Helper function to check if a tab is active
+  const isActiveTab = (path) => {
+    if (path === '/dashboard' || path === '/') {
+      return location.pathname === '/dashboard' || location.pathname === '/';
+    }
+    return location.pathname === path;
+  };
+
+  // Helper function to get tab button styles
+  const getTabStyles = (path) => {
+    const isActive = isActiveTab(path);
+    return {
+      ...(isActive ? {
+        background: '#007bff',
+        color: '#fff',
+        borderColor: '#007bff'
+      } : {
+        background: 'transparent',
+        color: '#ccc',
+        borderColor: '#444'
+      }),
+      transition: 'all 0.2s ease-in-out',
+      border: '1px solid',
+      padding: '8px 16px',
+      borderRadius: '6px',
+      textDecoration: 'none',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      fontSize: '14px',
+      fontWeight: isActive ? '600' : '400',
+      cursor: 'pointer',
+      className: `nav-tab ${isActive ? 'active' : ''}`
+    };
   };
 
   if (loading) {
@@ -80,20 +117,20 @@ function App() {
       {/* Main Navigation */}
       <div style={{ background: '#0f0f0f', borderBottom: '1px solid #333' }}>
         <div className="container">
-          <div className="flex gap-4" style={{ padding: '16px 0' }}>
-            <Link to="/dashboard" className="btn btn-secondary">
+          <div className="flex gap-4" style={{ padding: '16px 0', position: 'relative' }}>
+            <Link to="/dashboard" style={getTabStyles('/dashboard')}>
               <Home size={16} />
               Dashboard
             </Link>
-            <Link to="/transactions" className="btn btn-secondary">
+            <Link to="/transactions" style={getTabStyles('/transactions')}>
               <CreditCard size={16} />
               Transactions
             </Link>
-            <Link to="/analytics" className="btn btn-secondary">
+            <Link to="/analytics" style={getTabStyles('/analytics')}>
               <BarChart3 size={16} />
               Analytics
             </Link>
-            <Link to="/test" className="btn btn-secondary">
+            <Link to="/test" style={getTabStyles('/test')}>
               <Shield size={16} />
               WebAuthn Test
             </Link>
