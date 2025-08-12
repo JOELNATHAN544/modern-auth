@@ -116,19 +116,19 @@ function App() {
       <div style={{ background: '#0f0f0f', borderBottom: '1px solid #333' }}>
         <div className="container">
           <div className="flex gap-4" style={{ padding: '16px 0' }}>
-            <Link to="/dashboard" className="btn btn-secondary">
+            <Link to="/dashboard" style={getTabStyles('/dashboard')}>
               <Home size={16} />
               Dashboard
             </Link>
-            <Link to="/transactions" className="btn btn-secondary">
+            <Link to="/transactions" style={getTabStyles('/transactions')}>
               <CreditCard size={16} />
               Transactions
             </Link>
-            <Link to="/analytics" className="btn btn-secondary">
+            <Link to="/analytics" style={getTabStyles('/analytics')}>
               <BarChart3 size={16} />
               Analytics
             </Link>
-            <Link to="/test" className="btn btn-secondary">
+            <Link to="/test" style={getTabStyles('/test')}>
               <Shield size={16} />
               WebAuthn Test
             </Link>
