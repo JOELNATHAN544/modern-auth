@@ -16,6 +16,11 @@ const cron = require('node-cron');
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// WebAuthn configuration
+const rpName = 'Modern Auth Demo';
+const rpID = process.env.NODE_ENV === 'production' ? 'yourdomain.com' : 'localhost';
+const origin = process.env.NODE_ENV === 'production' ? 'https://yourdomain.com' : 'http://localhost:3000';
+
 // In-memory storage (in production, use a proper database)
 const users = new Map();
 const challenges = new Map();
@@ -29,9 +34,15 @@ const analytics = {
 // Middleware
 app.use(helmet());
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? 'https://yourdomain.com' : 'http://localhost:3000',
+  origin: process.env.NODE_ENV === 'production' ? 'https://yourdomain.com' : ['http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000'],
   credentials: true
 }));
+
+// Add request logging for debugging
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  next();
+});
 
 // Rate limiting
 const limiter = rateLimit({
@@ -45,10 +56,18 @@ app.use(limiter);
 
 app.use(express.json());
 
-// WebAuthn configuration
-const rpName = 'Modern Auth Demo';
-const rpID = process.env.NODE_ENV === 'production' ? 'yourdomain.com' : 'localhost';
-const origin = process.env.NODE_ENV === 'production' ? 'https://yourdomain.com' : 'http://localhost:3000';
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString(),
+    webauthn: {
+      rpID,
+      origin,
+      rpName
+    }
+  });
+});
 
 // Analytics tracking middleware
 app.use((req, res, next) => {
@@ -94,8 +113,8 @@ app.post('/api/auth/register/options', async (req, res) => {
       excludeCredentials: [],
       authenticatorSelection: {
         residentKey: 'preferred',
-        userVerification: 'preferred',
-        authenticatorAttachment: 'platform'
+        userVerification: 'preferred'
+        // Removed platform-only restriction to allow cross-platform authenticators
       }
     });
 
@@ -347,6 +366,25 @@ app.post('/api/transactions/stepup', async (req, res) => {
   } catch (error) {
     console.error('Step-up verification error:', error);
     res.status(500).json({ error: 'Failed to verify step-up authentication' });
+  }
+});
+
+// GET endpoint for transaction history
+app.get('/api/transactions', async (req, res) => {
+  try {
+    const { userId } = req.query;
+    
+    if (userId) {
+      // Get transactions for specific user
+      const userTransactions = analytics.transactions.filter(t => t.userId === userId);
+      res.json(userTransactions);
+    } else {
+      // Get all transactions (for admin/analytics purposes)
+      res.json(analytics.transactions);
+    }
+  } catch (error) {
+    console.error('Get transactions error:', error);
+    res.status(500).json({ error: 'Failed to fetch transactions' });
   }
 });
 
