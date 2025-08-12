@@ -1,5 +1,5 @@
 const { query } = require('../config/database');
-const { v4: uuidv4 } = require('uuid');
+const { v4: uuidv4, v5: uuidv5 } = require('uuid');
 
 class User {
   // Create a new user
@@ -15,6 +15,32 @@ class User {
     const userId = uuidv4();
     const result = await query(sql, [userId, username, email, auth_type]);
     return result.rows[0];
+  }
+
+  // Create user with a provided ID (for demo mode)
+  static async createWithId(id, { username, email, auth_type = 'demo' }) {
+    const sql = `
+      INSERT INTO users (id, username, email, auth_type)
+      VALUES ($1, $2, $3, $4)
+      ON CONFLICT (id) DO NOTHING
+      RETURNING *
+    `;
+    const result = await query(sql, [id, username, email, auth_type]);
+    // If user already existed, fetch it
+    if (result.rows.length === 0) {
+      return await this.findById(id);
+    }
+    return result.rows[0];
+  }
+
+  // Ensure a demo user exists by ID
+  static async ensureDemoUser(externalId, username = 'Demo User') {
+    // Create a deterministic UUID from the external string
+    const id = uuidv5(String(externalId), uuidv5.DNS);
+    const existing = await this.findById(id);
+    if (existing) return existing;
+    const email = `demo+${externalId}@example.com`;
+    return await this.createWithId(id, { username, email, auth_type: 'demo' });
   }
 
   // Find user by email
