@@ -1,31 +1,31 @@
-const { query } = require('../config/database');
-const { v4: uuidv4 } = require('uuid');
+const { query } = require("../config/database");
+const { v4: uuidv4 } = require("uuid");
 
 class WebAuthnCredential {
   // Create a new WebAuthn credential
   static async create(credentialData) {
-    const { 
-      user_id, 
-      credential_id, 
-      public_key, 
-      counter = 0, 
-      transports = [] 
+    const {
+      user_id,
+      credential_id,
+      public_key,
+      counter = 0,
+      transports = [],
     } = credentialData;
-    
+
     const sql = `
       INSERT INTO webauthn_credentials (id, user_id, credential_id, public_key, counter, transports)
       VALUES ($1, $2, $3, $4, $5, $6)
       RETURNING *
     `;
-    
+
     const credentialUuid = uuidv4();
     const result = await query(sql, [
-      credentialUuid, 
-      user_id, 
-      credential_id, 
-      public_key, 
-      counter, 
-      transports
+      credentialUuid,
+      user_id,
+      credential_id,
+      public_key,
+      counter,
+      transports,
     ]);
     return result.rows[0];
   }
