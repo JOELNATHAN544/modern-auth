@@ -1,5 +1,5 @@
 
-# A modern Authentication System
+# Modern Authentication System
 
 A comprehensive demonstration of modern authentication technologies including WebAuthn/passkeys, step-up authentication for banking, and conversion analytics tracking.
 
