@@ -1,36 +1,37 @@
-const { query } = require('../config/database');
-const { v4: uuidv4 } = require('uuid');
+const { query } = require("../config/database");
+const { v4: uuidv4 } = require("uuid");
 
 class Transaction {
   // Create a new transaction
   static async create(transactionData) {
-    const { 
-      user_id, 
-      amount, 
-      currency = 'EUR', 
-      description, 
-      ip_address, 
-      user_agent 
+    const {
+      user_id,
+      amount,
+      currency = "EUR",
+      description,
+      ip_address,
+      user_agent,
     } = transactionData;
-    
-    const requiresStepup = parseFloat(amount) > parseFloat(process.env.PSD3_THRESHOLD || 150);
-    
+
+    const requiresStepup =
+      parseFloat(amount) > parseFloat(process.env.PSD3_THRESHOLD || 150);
+
     const sql = `
       INSERT INTO transactions (id, user_id, amount, currency, description, requires_stepup, ip_address, user_agent)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
     `;
-    
+
     const transactionId = uuidv4();
     const result = await query(sql, [
-      transactionId, 
-      user_id, 
-      amount, 
-      currency, 
-      description, 
-      requiresStepup, 
-      ip_address, 
-      user_agent
+      transactionId,
+      user_id,
+      amount,
+      currency,
+      description,
+      requiresStepup,
+      ip_address,
+      user_agent,
     ]);
     return result.rows[0];
   }
