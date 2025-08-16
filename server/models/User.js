@@ -1,24 +1,24 @@
-const { query } = require('../config/database');
-const { v4: uuidv4, v5: uuidv5 } = require('uuid');
+const { query } = require("../config/database");
+const { v4: uuidv4, v5: uuidv5 } = require("uuid");
 
 class User {
   // Create a new user
   static async create(userData) {
-    const { username, email, auth_type = 'passkey' } = userData;
-    
+    const { username, email, auth_type = "passkey" } = userData;
+
     const sql = `
       INSERT INTO users (id, username, email, auth_type)
       VALUES ($1, $2, $3, $4)
       RETURNING *
     `;
-    
+
     const userId = uuidv4();
     const result = await query(sql, [userId, username, email, auth_type]);
     return result.rows[0];
   }
 
   // Create user with a provided ID (for demo mode)
-  static async createWithId(id, { username, email, auth_type = 'demo' }) {
+  static async createWithId(id, { username, email, auth_type = "demo" }) {
     const sql = `
       INSERT INTO users (id, username, email, auth_type)
       VALUES ($1, $2, $3, $4)
@@ -34,25 +34,25 @@ class User {
   }
 
   // Ensure a demo user exists by ID
-  static async ensureDemoUser(externalId, username = 'Demo User') {
+  static async ensureDemoUser(externalId, username = "Demo User") {
     // Create a deterministic UUID from the external string
     const id = uuidv5(String(externalId), uuidv5.DNS);
     const existing = await this.findById(id);
     if (existing) return existing;
     const email = `demo+${externalId}@example.com`;
-    return await this.createWithId(id, { username, email, auth_type: 'demo' });
+    return await this.createWithId(id, { username, email, auth_type: "demo" });
   }
 
   // Find user by email
   static async findByEmail(email) {
-    const sql = 'SELECT * FROM users WHERE email = $1 AND is_active = true';
+    const sql = "SELECT * FROM users WHERE email = $1 AND is_active = true";
     const result = await query(sql, [email]);
     return result.rows[0] || null;
   }
 
   // Find user by ID
   static async findById(id) {
-    const sql = 'SELECT * FROM users WHERE id = $1 AND is_active = true';
+    const sql = "SELECT * FROM users WHERE id = $1 AND is_active = true";
     const result = await query(sql, [id]);
     return result.rows[0] || null;
   }
