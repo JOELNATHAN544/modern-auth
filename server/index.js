@@ -24,13 +24,9 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // WebAuthn configuration
-const rpName = "Modern Auth Demo";
-const rpID =
-  process.env.NODE_ENV === "production" ? "yourdomain.com" : "localhost";
-const origin =
-  process.env.NODE_ENV === "production"
-    ? "https://yourdomain.com"
-    : "http://localhost:3000";
+const rpName = process.env.WEBAUTHN_RP_NAME || "Modern Auth Demo";
+const rpID = process.env.WEBAUTHN_RP_ID || "localhost";
+const origin = process.env.WEBAUTHN_ORIGIN || "http://localhost:3000";
 
 // In-memory storage for challenges only (these are temporary)
 const challenges = new Map();
@@ -75,6 +71,9 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.use(express.json());
+
+// Trust proxy for rate limiting
+app.set('trust proxy', 1);
 
 // Health check endpoint
 app.get("/health", (req, res) => {
