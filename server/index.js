@@ -614,36 +614,51 @@ app.post('/api/auth/register/complete', async (req, res) => {
 // Begin login (create options)
 app.post('/api/auth/login/begin', async (req, res) => {
   try {
-    const { username } = req.body; // email
-    if (!username) {
-      return res.status(400).json({ error: 'username is required' });
+    const { username } = req.body; // optional email
+
+    if (username) {
+      // Username provided: return options scoped to that user's credentials
+      const user = await User.findByEmail(username);
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      const creds = await WebAuthnCredential.findByUserId(user.id);
+      const options = await generateAuthenticationOptions({
+        rpID,
+        allowCredentials: creds.map((c) => ({
+          id: c.credential_id,
+          type: 'public-key',
+          transports: c.transports || [],
+        })),
+        userVerification: 'required',
+      });
+
+      const challengeBuf = Buffer.from(options.challenge, 'base64url');
+      await query(
+        `INSERT INTO auth_challenges (challenge, user_id, challenge_type, expires_at)
+         VALUES ($1,$2,'authentication', NOW() + INTERVAL '5 minutes')`,
+        [challengeBuf, user.id]
+      );
+
+      return res.json({ ...options, mode: 'username' });
     }
 
-    const user = await User.findByEmail(username);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
-
-    const creds = await WebAuthnCredential.findByUserId(user.id);
+    // No username: usernameless/conditional UI. Empty allowCredentials to let browser discover local creds
     const options = await generateAuthenticationOptions({
       rpID,
-      allowCredentials: creds.map((c) => ({
-        id: c.credential_id,
-        type: 'public-key',
-        transports: c.transports || [],
-      })),
+      allowCredentials: [],
       userVerification: 'required',
     });
 
-    // Store challenge in DB
     const challengeBuf = Buffer.from(options.challenge, 'base64url');
     await query(
       `INSERT INTO auth_challenges (challenge, user_id, challenge_type, expires_at)
-       VALUES ($1,$2,'authentication', NOW() + INTERVAL '5 minutes')`,
-      [challengeBuf, user.id]
+       VALUES ($1,NULL,'authentication', NOW() + INTERVAL '5 minutes')`,
+      [challengeBuf]
     );
 
-    res.json(options);
+    return res.json({ ...options, mode: 'usernameless' });
   } catch (e) {
     console.error('login/begin error:', e);
     res.status(500).json({ error: 'Failed to begin login' });
