@@ -506,7 +506,7 @@ app.post('/api/auth/password/login', async (req, res) => {
 // Begin registration (create options)
 app.post('/api/auth/register/begin', async (req, res) => {
   try {
-    const { username, displayName } = req.body; // username is email
+    const { username, displayName, attachmentPreference } = req.body; // username is email
     if (!username || !displayName) {
       return res.status(400).json({ error: 'username and displayName are required' });
     }
@@ -527,6 +527,12 @@ app.post('/api/auth/register/begin', async (req, res) => {
       authenticatorSelection: {
         residentKey: 'preferred',
         userVerification: 'required',
+        authenticatorAttachment:
+          attachmentPreference === 'platform'
+            ? 'platform'
+            : attachmentPreference === 'cross-platform'
+            ? 'cross-platform'
+            : undefined,
       },
       excludeCredentials: [],
     });
