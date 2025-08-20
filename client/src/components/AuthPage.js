@@ -20,6 +20,26 @@ const AuthPage = ({ onLogin }) => {
   // Check WebAuthn support on component mount
   useEffect(() => {
     checkWebAuthnSupport();
+    // Attempt usernameless (local passkey) login prompt on load
+    (async () => {
+      try {
+        if (!isLogin) return; // only on login screen
+        const begin = await axios.post('/api/auth/login/begin', {});
+        const assertion = await startAuthentication(begin.data);
+        const complete = await axios.post('/api/auth/login/complete', {
+          credential: assertion,
+          expectedChallenge: begin.data.challenge,
+        });
+        if (complete.data.success) {
+          localStorage.setItem('token', complete.data.token);
+          localStorage.setItem('user', JSON.stringify(complete.data.user));
+          onLogin(complete.data.user);
+          toast.success('Logged in with a local passkey');
+        }
+      } catch (err) {
+        // Silent fail: show normal form; if no local passkey, user can enter email to trigger QR/phone flow
+      }
+    })();
   }, []);
 
   const checkWebAuthnSupport = () => {
@@ -71,18 +91,21 @@ const AuthPage = ({ onLogin }) => {
 
     try {
       if (isLogin) {
-        // Login with passkey (new endpoints)
-        const begin = await axios.post('/api/auth/login/begin', {
-          username: formData.email
-        });
+        // If email provided, trigger cross-device/QR-capable flow
+        const begin = await axios.post('/api/auth/login/begin', formData.email ? { username: formData.email } : {});
+
+        // If allowCredentials is empty, suggest QR/phone option in UI
+        if (Array.isArray(begin.data.allowCredentials) && begin.data.allowCredentials.length === 0 && !formData.email) {
+          toast('No local passkeys found. Enter your email to use your phone (QR).', { icon: 'ℹ️' });
+          setLoading(false);
+          return;
+        }
 
         const assertion = await startAuthentication(begin.data);
-
         const complete = await axios.post('/api/auth/login/complete', {
           credential: assertion,
-          expectedChallenge: begin.data.challenge
+          expectedChallenge: begin.data.challenge,
         });
-
         if (complete.data.success) {
           localStorage.setItem('token', complete.data.token);
           localStorage.setItem('user', JSON.stringify(complete.data.user));
