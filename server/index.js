@@ -132,7 +132,7 @@ app.post("/api/auth/register/options", async (req, res) => {
       authenticatorSelection: {
         residentKey: "preferred",
         userVerification: "preferred",
-        // Removed platform-only restriction to allow cross-platform authenticators
+        authenticatorAttachment: undefined, // Allow both platform and cross-platform
       },
     });
 
