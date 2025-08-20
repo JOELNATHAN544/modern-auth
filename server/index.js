@@ -18,7 +18,7 @@ const cron = require("node-cron");
 const User = require("./models/User");
 const Transaction = require("./models/Transaction");
 const WebAuthnCredential = require("./models/WebAuthnCredential");
-const { testConnection } = require("./config/database");
+const { query, testConnection } = require("./config/database");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -446,6 +446,196 @@ app.get("/api/transactions", async (req, res) => {
   } catch (error) {
     console.error("Get transactions error:", error);
     res.status(500).json({ error: "Failed to fetch transactions" });
+  }
+});
+
+// PART 1B: WebAuthn Passkeys (DB-backed, spec-aligned endpoints)
+
+// Begin registration (create options)
+app.post('/api/auth/register/begin', async (req, res) => {
+  try {
+    const { username, displayName } = req.body; // username is email
+    if (!username || !displayName) {
+      return res.status(400).json({ error: 'username and displayName are required' });
+    }
+
+    // Ensure user exists (create if not)
+    let user = await User.findByEmail(username);
+    if (!user) {
+      user = await User.create({ username: displayName, email: username, auth_type: 'passkey' });
+    }
+
+    const options = await generateRegistrationOptions({
+      rpName,
+      rpID,
+      userID: user.id,
+      userName: user.email,
+      userDisplayName: user.username,
+      attestationType: 'none',
+      authenticatorSelection: {
+        residentKey: 'preferred',
+        userVerification: 'preferred',
+      },
+      excludeCredentials: [],
+    });
+
+    // Store challenge in DB as bytea
+    const challengeBuf = Buffer.from(options.challenge, 'base64url');
+    await query(
+      `INSERT INTO auth_challenges (challenge, user_id, challenge_type, expires_at)
+       VALUES ($1,$2,'registration', NOW() + INTERVAL '5 minutes')`,
+      [challengeBuf, user.id]
+    );
+
+    res.json(options);
+  } catch (e) {
+    console.error('register/begin error:', e);
+    res.status(500).json({ error: 'Failed to begin registration' });
+  }
+});
+
+// Complete registration (verify and persist credential)
+app.post('/api/auth/register/complete', async (req, res) => {
+  try {
+    const { credential, expectedChallenge } = req.body;
+    if (!credential || !expectedChallenge) {
+      return res.status(400).json({ error: 'Missing credential or expectedChallenge' });
+    }
+
+    const challengeBuf = Buffer.from(expectedChallenge, 'base64url');
+    const { rows } = await query(
+      `SELECT * FROM auth_challenges
+       WHERE challenge=$1 AND challenge_type='registration' AND is_used=false AND expires_at>NOW()`,
+      [challengeBuf]
+    );
+    if (!rows.length) {
+      return res.status(400).json({ error: 'Invalid or expired challenge' });
+    }
+    const challengeRow = rows[0];
+
+    const verification = await verifyRegistrationResponse({
+      response: credential,
+      expectedChallenge,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
+    });
+    if (!verification.verified) {
+      return res.status(400).json({ error: 'Registration verification failed' });
+    }
+
+    // Persist new credential
+    await WebAuthnCredential.create({
+      user_id: challengeRow.user_id,
+      credential_id: verification.registrationInfo.credentialID,
+      public_key: verification.registrationInfo.credentialPublicKey,
+      counter: verification.registrationInfo.counter,
+      transports: credential.response?.transports || [],
+    });
+
+    // Mark challenge as used
+    await query(`UPDATE auth_challenges SET is_used=true WHERE id=$1`, [challengeRow.id]);
+
+    // Return token and user info
+    const createdUser = await User.findById(challengeRow.user_id);
+    const token = jwt.sign({ userId: challengeRow.user_id }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '24h' });
+    res.json({ success: true, token, user: createdUser && { id: createdUser.id, username: createdUser.username, email: createdUser.email } });
+  } catch (e) {
+    console.error('register/complete error:', e);
+    res.status(500).json({ error: 'Failed to complete registration' });
+  }
+});
+
+// Begin login (create options)
+app.post('/api/auth/login/begin', async (req, res) => {
+  try {
+    const { username } = req.body; // email
+    if (!username) {
+      return res.status(400).json({ error: 'username is required' });
+    }
+
+    const user = await User.findByEmail(username);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const creds = await WebAuthnCredential.findByUserId(user.id);
+    const options = await generateAuthenticationOptions({
+      rpID,
+      allowCredentials: creds.map((c) => ({
+        id: c.credential_id,
+        type: 'public-key',
+        transports: c.transports || [],
+      })),
+      userVerification: 'preferred',
+    });
+
+    // Store challenge in DB
+    const challengeBuf = Buffer.from(options.challenge, 'base64url');
+    await query(
+      `INSERT INTO auth_challenges (challenge, user_id, challenge_type, expires_at)
+       VALUES ($1,$2,'authentication', NOW() + INTERVAL '5 minutes')`,
+      [challengeBuf, user.id]
+    );
+
+    res.json(options);
+  } catch (e) {
+    console.error('login/begin error:', e);
+    res.status(500).json({ error: 'Failed to begin login' });
+  }
+});
+
+// Complete login (verify assertion)
+app.post('/api/auth/login/complete', async (req, res) => {
+  try {
+    const { credential, expectedChallenge } = req.body;
+    if (!credential || !expectedChallenge) {
+      return res.status(400).json({ error: 'Missing credential or expectedChallenge' });
+    }
+
+    const challengeBuf = Buffer.from(expectedChallenge, 'base64url');
+    const { rows } = await query(
+      `SELECT * FROM auth_challenges
+       WHERE challenge=$1 AND challenge_type='authentication' AND is_used=false AND expires_at>NOW()`,
+      [challengeBuf]
+    );
+    if (!rows.length) {
+      return res.status(400).json({ error: 'Invalid or expired challenge' });
+    }
+    const challengeRow = rows[0];
+
+    // Look up stored authenticator by credentialId
+    const credentialIdBuf = Buffer.from(credential.id, 'base64url');
+    const stored = await WebAuthnCredential.findByCredentialId(credentialIdBuf);
+    if (!stored) {
+      return res.status(404).json({ error: 'Credential not found' });
+    }
+
+    const verification = await verifyAuthenticationResponse({
+      response: credential,
+      expectedChallenge,
+      expectedOrigin: origin,
+      expectedRPID: rpID,
+      authenticator: {
+        credentialID: stored.credential_id,
+        credentialPublicKey: stored.public_key,
+        counter: stored.counter,
+      },
+    });
+    if (!verification.verified) {
+      return res.status(400).json({ error: 'Authentication verification failed' });
+    }
+
+    // Update counter and last used
+    await WebAuthnCredential.updateCounter(stored.credential_id, verification.authenticationInfo.newCounter);
+    await User.updateLastLogin(stored.user_id);
+    await query(`UPDATE auth_challenges SET is_used=true WHERE id=$1`, [challengeRow.id]);
+
+    const loggedInUser = await User.findById(stored.user_id);
+    const token = jwt.sign({ userId: stored.user_id }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '24h' });
+    res.json({ success: true, token, user: loggedInUser && { id: loggedInUser.id, username: loggedInUser.username, email: loggedInUser.email } });
+  } catch (e) {
+    console.error('login/complete error:', e);
+    res.status(500).json({ error: 'Failed to complete login' });
   }
 });
 
