@@ -2,8 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
-const {
-  generateRegistrationOptions,
+const { 
+  generateRegistrationOptions, 
   verifyRegistrationResponse,
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
@@ -104,7 +104,7 @@ app.use((req, res, next) => {
 app.post("/api/auth/register/options", async (req, res) => {
   try {
     const { username, email } = req.body;
-
+    
     if (!username || !email) {
       return res.status(400).json({ error: "Username and email are required" });
     }
@@ -190,8 +190,8 @@ app.post("/api/auth/register/verify", async (req, res) => {
         { expiresIn: "24h" }
       );
 
-      res.json({
-        success: true,
+      res.json({ 
+        success: true, 
         token,
         user: { id: user.id, username: user.username, email: user.email },
       });
@@ -208,7 +208,7 @@ app.post("/api/auth/register/verify", async (req, res) => {
 app.post("/api/auth/login/options", async (req, res) => {
   try {
     const { email } = req.body;
-
+    
     const user = await User.findByEmail(email);
     if (!user) {
       return res.status(404).json({ error: "User not found" });
@@ -287,8 +287,8 @@ app.post("/api/auth/login/verify", async (req, res) => {
         { expiresIn: "24h" }
       );
 
-      res.json({
-        success: true,
+      res.json({ 
+        success: true, 
         token,
         user: { id: user.id, username: user.username, email: user.email },
       });
@@ -305,7 +305,7 @@ app.post("/api/auth/login/verify", async (req, res) => {
 app.post("/api/transactions", async (req, res) => {
   try {
     const { amount, description, userId } = req.body;
-
+    
     if (!amount || !description || !userId) {
       return res
         .status(400)
@@ -344,11 +344,11 @@ app.post("/api/transactions", async (req, res) => {
     // PSD3 threshold check (€150)
     if (transaction.requires_stepup) {
       analytics.stepUpAuth.triggered++;
-
+      
       // Generate OTP for step-up authentication
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-
+      
       challenges.set(otp, {
         transaction,
         type: "stepup",
@@ -369,7 +369,7 @@ app.post("/api/transactions", async (req, res) => {
     } else {
       // Transaction proceeds without step-up
       await Transaction.updateStatus(transaction.id, "completed");
-
+      
       res.json({
         requiresStepUp: false,
         transaction: transaction,
@@ -387,7 +387,7 @@ app.post("/api/transactions", async (req, res) => {
 app.post("/api/transactions/stepup", async (req, res) => {
   try {
     const { otp, transactionId } = req.body;
-
+    
     const challengeData = challenges.get(otp);
     if (!challengeData || challengeData.type !== "stepup") {
       return res.status(400).json({ error: "Invalid OTP" });
@@ -410,7 +410,7 @@ app.post("/api/transactions/stepup", async (req, res) => {
     );
     await Transaction.markStepupCompleted(transaction.id);
     analytics.stepUpAuth.completed++;
-
+    
     challenges.delete(otp);
 
     res.json({
@@ -451,6 +451,58 @@ app.get("/api/transactions", async (req, res) => {
 
 // PART 1B: WebAuthn Passkeys (DB-backed, spec-aligned endpoints)
 
+// Password registration (for MFA with passkey)
+app.post('/api/auth/password/register', async (req, res) => {
+  try {
+    const { email, username, password } = req.body;
+    if (!email || !username || !password) {
+      return res.status(400).json({ error: 'Missing fields' });
+    }
+
+    const existing = await User.findByEmail(email);
+    if (existing) {
+      return res.status(400).json({ error: 'User exists' });
+    }
+
+    const password_hash = await bcrypt.hash(password, 12);
+    const user = await User.create({ username, email, auth_type: 'password' });
+    await query(`UPDATE users SET password_hash=$2 WHERE id=$1`, [user.id, password_hash]);
+
+    res.json({ success: true });
+  } catch (e) {
+    console.error('password/register error:', e);
+    res.status(500).json({ error: 'Failed to register password user' });
+  }
+});
+
+// Password login (phase 1 of MFA)
+app.post('/api/auth/password/login', async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Missing fields' });
+    }
+
+    const user = await User.findByEmail(email);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    const { rows } = await query(`SELECT password_hash FROM users WHERE id=$1`, [user.id]);
+    const ok = rows[0]?.password_hash && await bcrypt.compare(password, rows[0].password_hash);
+    if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const pendingId = uuidv4();
+    await query(`
+      INSERT INTO auth_sessions (id, user_id, session_token, auth_type, created_at, expires_at, is_active)
+      VALUES ($1,$2,$3,'password',NOW(), NOW() + INTERVAL '5 minutes', true)
+    `, [pendingId, user.id, pendingId]);
+
+    res.json({ success: true, passwordSessionId: pendingId, requirePasskey: true });
+  } catch (e) {
+    console.error('password/login error:', e);
+    res.status(500).json({ error: 'Failed to login' });
+  }
+});
+
 // Begin registration (create options)
 app.post('/api/auth/register/begin', async (req, res) => {
   try {
@@ -474,7 +526,7 @@ app.post('/api/auth/register/begin', async (req, res) => {
       attestationType: 'none',
       authenticatorSelection: {
         residentKey: 'preferred',
-        userVerification: 'preferred',
+        userVerification: 'required',
       },
       excludeCredentials: [],
     });
@@ -566,7 +618,7 @@ app.post('/api/auth/login/begin', async (req, res) => {
         type: 'public-key',
         transports: c.transports || [],
       })),
-      userVerification: 'preferred',
+      userVerification: 'required',
     });
 
     // Store challenge in DB
@@ -654,35 +706,35 @@ app.get("/api/analytics/conversion", async (req, res) => {
         ? (analytics.signupCompleted.passkey /
             analytics.signupStarted.passkey) *
           100
-        : 0;
-
-    const conversionDelta = passkeyConversion - passwordConversion;
+    : 0;
+  
+  const conversionDelta = passkeyConversion - passwordConversion;
 
     // Get transaction stats from database
     const transactionStats = await Transaction.getStats();
 
-    res.json({
-      password: {
-        started: analytics.signupStarted.password,
-        completed: analytics.signupCompleted.password,
+  res.json({
+    password: {
+      started: analytics.signupStarted.password,
+      completed: analytics.signupCompleted.password,
         conversionRate: passwordConversion.toFixed(2) + "%",
-      },
-      passkey: {
-        started: analytics.signupStarted.passkey,
-        completed: analytics.signupCompleted.passkey,
+    },
+    passkey: {
+      started: analytics.signupStarted.passkey,
+      completed: analytics.signupCompleted.passkey,
         conversionRate: passkeyConversion.toFixed(2) + "%",
-      },
-      delta: {
+    },
+    delta: {
         percentage: conversionDelta.toFixed(2) + "%",
         improvement:
           conversionDelta > 0
             ? "Passkeys improve conversion"
             : "Passkeys reduce conversion",
-      },
-      stepUpAuth: analytics.stepUpAuth,
+    },
+    stepUpAuth: analytics.stepUpAuth,
       totalTransactions: transactionStats.total_transactions || 0,
       transactionStats: transactionStats,
-    });
+  });
   } catch (error) {
     console.error("Analytics error:", error);
     res.status(500).json({ error: "Failed to fetch analytics" });
@@ -715,7 +767,7 @@ const startServer = async () => {
     console.log("✅ Database connected successfully");
 
     // Start the server
-    app.listen(PORT, () => {
+app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`🔐 WebAuthn RP ID: ${rpID}`);
       console.log(`🌐 Origin: ${origin}`);
