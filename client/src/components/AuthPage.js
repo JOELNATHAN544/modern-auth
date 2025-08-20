@@ -6,7 +6,8 @@ import { startRegistration, startAuthentication } from '@simplewebauthn/browser'
 
 const AuthPage = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
-  const [authType, setAuthType] = useState('password'); // 'password' or 'passkey'
+  const [authType, setAuthType] = useState('passkey'); // force passkey as default
+  const [registrationAttachment, setRegistrationAttachment] = useState('platform'); // 'platform' | 'cross-platform'
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -20,39 +21,38 @@ const AuthPage = ({ onLogin }) => {
   // Check WebAuthn support on component mount
   useEffect(() => {
     checkWebAuthnSupport();
+    // Attempt usernameless (local passkey) login prompt on load
+    (async () => {
+      try {
+        if (!isLogin) return; // only on login screen
+        const begin = await axios.post('/api/auth/login/begin', {});
+        const assertion = await startAuthentication(begin.data);
+        const complete = await axios.post('/api/auth/login/complete', {
+          credential: assertion,
+          expectedChallenge: begin.data.challenge,
+        });
+        if (complete.data.success) {
+          localStorage.setItem('token', complete.data.token);
+          localStorage.setItem('user', JSON.stringify(complete.data.user));
+          onLogin(complete.data.user);
+          toast.success('Logged in with a local passkey');
+        }
+      } catch (err) {
+        // Silent fail: show normal form; if no local passkey, user can enter email to trigger QR/phone flow
+      }
+    })();
   }, []);
 
   const checkWebAuthnSupport = () => {
     try {
-      // Check if WebAuthn is supported
       if (!window.PublicKeyCredential) {
         setWebauthnSupported(false);
         setWebauthnError('WebAuthn is not supported in this browser');
         return;
       }
-
-      // Check if the browser supports the required features
-      if (!PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable) {
-        setWebauthnSupported(false);
-        setWebauthnError('Platform authenticator not available');
-        return;
-      }
-
-      // Check if user verification is available
-      PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
-        .then((available) => {
-          if (available) {
+      // Consider supported if WebAuthn API is available (allow phone/security key)
             setWebauthnSupported(true);
             setWebauthnError(null);
-          } else {
-            setWebauthnSupported(false);
-            setWebauthnError('Platform authenticator not available on this device');
-          }
-        })
-        .catch(() => {
-          setWebauthnSupported(false);
-          setWebauthnError('Unable to check platform authenticator availability');
-        });
     } catch (error) {
       setWebauthnSupported(false);
       setWebauthnError('WebAuthn check failed');
@@ -92,42 +92,47 @@ const AuthPage = ({ onLogin }) => {
 
     try {
       if (isLogin) {
-        // Login with passkey
-        const response = await axios.post('/api/auth/login/options', {
-          email: formData.email
-        });
+        // If email provided, trigger cross-device/QR-capable flow
+        const begin = await axios.post('/api/auth/login/begin', formData.email ? { username: formData.email } : {});
 
-        const credential = await startAuthentication(response.data);
-        
-        const verificationResponse = await axios.post('/api/auth/login/verify', {
-          credential,
-          expectedChallenge: response.data.challenge
-        });
+        // If allowCredentials is empty, suggest QR/phone option in UI
+        if (Array.isArray(begin.data.allowCredentials) && begin.data.allowCredentials.length === 0 && !formData.email) {
+          toast('No local passkeys found. Enter your email to use your phone (QR).', { icon: 'ℹ️' });
+          setLoading(false);
+          return;
+        }
 
-        if (verificationResponse.data.success) {
-          localStorage.setItem('token', verificationResponse.data.token);
-          localStorage.setItem('user', JSON.stringify(verificationResponse.data.user));
-          onLogin(verificationResponse.data.user);
+        const assertion = await startAuthentication(begin.data);
+        const complete = await axios.post('/api/auth/login/complete', {
+          credential: assertion,
+          expectedChallenge: begin.data.challenge,
+        });
+        if (complete.data.success) {
+          localStorage.setItem('token', complete.data.token);
+          localStorage.setItem('user', JSON.stringify(complete.data.user));
+          onLogin(complete.data.user);
           toast.success('Login successful!');
         }
       } else {
-        // Register with passkey
-        const response = await axios.post('/api/auth/register/options', {
-          username: formData.username,
-          email: formData.email
+        // Register with passkey (new endpoints)
+        const displayName = formData.username || formData.email;
+        const begin = await axios.post('/api/auth/register/begin', {
+          username: formData.email,
+          displayName,
+          attachmentPreference: registrationAttachment
         });
 
-        const credential = await startRegistration(response.data);
-        
-        const verificationResponse = await axios.post('/api/auth/register/verify', {
-          credential,
-          expectedChallenge: response.data.challenge
+        const attestation = await startRegistration(begin.data);
+
+        const complete = await axios.post('/api/auth/register/complete', {
+          credential: attestation,
+          expectedChallenge: begin.data.challenge
         });
 
-        if (verificationResponse.data.success) {
-          localStorage.setItem('token', verificationResponse.data.token);
-          localStorage.setItem('user', JSON.stringify(verificationResponse.data.user));
-          onLogin(verificationResponse.data.user);
+        if (complete.data.success) {
+          localStorage.setItem('token', complete.data.token);
+          localStorage.setItem('user', JSON.stringify(complete.data.user));
+          onLogin(complete.data.user);
           toast.success('Registration successful!');
         }
       }
@@ -138,43 +143,18 @@ const AuthPage = ({ onLogin }) => {
       } else if (error.name === 'NotAllowedError') {
         toast.error('Authentication was cancelled by the user.');
       } else if (error.name === 'NotSupportedError') {
-        toast.error('Your device does not support passkeys. Switching to demo mode for testing.');
-        handleDemoAuth();
+        toast.error('Passkeys not supported on this device/browser. Try Chrome with passkeys enabled.');
       } else if (error.name === 'SecurityError') {
         toast.error('Security error. Please ensure you are using HTTPS or localhost.');
-      } else {
-        // If WebAuthn fails, offer demo mode
-        // eslint-disable-next-line no-restricted-globals
-        if (confirm('WebAuthn authentication failed. Would you like to try demo mode for testing?')) {
-          handleDemoAuth();
         } else {
           toast.error(error.response?.data?.error || 'Authentication failed');
-        }
       }
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDemoAuth = async () => {
-    try {
-      // Simulate successful authentication for demo purposes
-      const demoUser = {
-        id: 'demo-user-' + Date.now(),
-        username: formData.username || 'Demo User',
-        email: formData.email
-      };
-
-      const demoToken = 'demo-token-' + Date.now();
-      
-      localStorage.setItem('token', demoToken);
-      localStorage.setItem('user', JSON.stringify(demoUser));
-      onLogin(demoUser);
-      toast.success('Demo authentication successful! (WebAuthn simulation)');
-    } catch (error) {
-      toast.error('Demo authentication failed');
-    }
-  };
+  // Demo mode removed – passkeys required
 
   const handleSubmit = (e) => {
     if (authType === 'passkey') {
@@ -185,12 +165,6 @@ const AuthPage = ({ onLogin }) => {
   };
 
   const handleAuthTypeChange = (type) => {
-    if (type === 'passkey' && !webauthnSupported) {
-      toast('Passkey support not detected. You can still try, or use demo mode if it fails.', {
-        icon: 'ℹ️',
-        duration: 4000,
-      });
-    }
     setAuthType(type);
   };
 
@@ -237,7 +211,7 @@ const AuthPage = ({ onLogin }) => {
             </div>
           )}
 
-          {/* Auth Type Toggle */}
+          {/* Auth Type (Passkey default) */}
           <div className="flex gap-2 mb-4" style={{ background: '#2a2a2a', padding: '4px', borderRadius: '8px' }}>
             <button
               type="button"
@@ -258,6 +232,28 @@ const AuthPage = ({ onLogin }) => {
               Passkey
             </button>
           </div>
+
+          {/* Registration attachment preference */}
+          {!isLogin && authType === 'passkey' && (
+            <div className="flex gap-2 mb-3" style={{ background: '#1f1f1f', padding: '6px', borderRadius: '8px' }}>
+              <button
+                type="button"
+                onClick={() => setRegistrationAttachment('platform')}
+                className={`btn ${registrationAttachment === 'platform' ? 'btn-success' : 'btn-secondary'}`}
+                style={{ flex: 1, padding: '6px 10px', fontSize: '12px' }}
+              >
+                Use this device
+              </button>
+              <button
+                type="button"
+                onClick={() => setRegistrationAttachment('cross-platform')}
+                className={`btn ${registrationAttachment === 'cross-platform' ? 'btn-success' : 'btn-secondary'}`}
+                style={{ flex: 1, padding: '6px 10px', fontSize: '12px' }}
+              >
+                Use phone / security key
+              </button>
+            </div>
+          )}
 
           <form onSubmit={handleSubmit}>
             {!isLogin && (
@@ -380,25 +376,10 @@ const AuthPage = ({ onLogin }) => {
                 <span style={{ fontWeight: '500', color: '#ffc107' }}>Troubleshooting</span>
               </div>
               <ul style={{ fontSize: '14px', color: '#ccc', paddingLeft: '20px' }}>
-                <li>Use a modern browser (Chrome, Firefox, Safari, Edge)</li>
+                <li>Use a modern browser (Chrome recommended)</li>
                 <li>Ensure you're on HTTPS or localhost</li>
-                <li>Check if your device supports biometric authentication</li>
-                <li>Try using password authentication as fallback</li>
+                <li>If no platform authenticator, try your phone or a security key</li>
               </ul>
-              
-              {/* Demo Mode Button */}
-              <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid #444' }}>
-                <button
-                  onClick={handleDemoAuth}
-                  className="btn btn-success"
-                  style={{ width: '100%', fontSize: '14px' }}
-                >
-                  🎮 Try Demo Mode
-                </button>
-                <p style={{ fontSize: '12px', color: '#888', marginTop: '8px', textAlign: 'center' }}>
-                  Simulate passkey authentication for testing
-                </p>
-              </div>
             </div>
           )}
         </div>
