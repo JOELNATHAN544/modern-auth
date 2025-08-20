@@ -576,6 +576,20 @@ app.post('/api/auth/register/complete', async (req, res) => {
     }
 
     // Persist new credential
+    // Debug logging: Public key and credential ID (safe to log; DO NOT attempt private key)
+    try {
+      const credIdB64 = Buffer.from(verification.registrationInfo.credentialID).toString('base64url');
+      const pubKeyB64 = Buffer.from(verification.registrationInfo.credentialPublicKey).toString('base64url');
+      console.log('🔐 WebAuthn Registration - Storing public key');
+      console.log({
+        userId: challengeRow.user_id,
+        credentialId_base64url: credIdB64,
+        publicKey_COSE_base64url: pubKeyB64,
+        initialCounter: verification.registrationInfo.counter,
+      });
+      console.log('ℹ️ Private key never leaves the authenticator (TPM/Secure Enclave/security key). It is non-exportable and cannot be logged.');
+    } catch (_) {}
+
     await WebAuthnCredential.create({
       user_id: challengeRow.user_id,
       credential_id: verification.registrationInfo.credentialID,
@@ -678,6 +692,20 @@ app.post('/api/auth/login/complete', async (req, res) => {
     }
 
     // Update counter and last used
+    // Debug logging: signature and counters (no private key access)
+    try {
+      const credIdB64 = Buffer.from(credential.id, 'base64url').toString('base64url');
+      const sigB64 = credential?.response?.signature || '(not provided)';
+      console.log('🔑 WebAuthn Authentication - Verifying signature with stored public key');
+      console.log({
+        userId: stored.user_id,
+        credentialId_base64url: credIdB64,
+        newCounter: verification.authenticationInfo.newCounter,
+        signature_base64url: sigB64,
+      });
+      console.log('ℹ️ Signature was created inside the authenticator using the non-exportable private key.');
+    } catch (_) {}
+
     await WebAuthnCredential.updateCounter(stored.credential_id, verification.authenticationInfo.newCounter);
     await User.updateLastLogin(stored.user_id);
     await query(`UPDATE auth_challenges SET is_used=true WHERE id=$1`, [challengeRow.id]);
