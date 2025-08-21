@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Key, Fingerprint, Eye, EyeOff, AlertTriangle, Settings } from 'lucide-react';
+import { Shield, Key, Fingerprint, Eye, EyeOff, AlertTriangle, Settings, Smartphone, QrCode } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
 import deviceCapabilities from '../services/deviceCapabilities';
 import webauthnService from '../services/webauthnService';
+import CrossDeviceAuth from './CrossDeviceAuth';
 
 const AuthPage = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [authType, setAuthType] = useState('passkey');
   const [useMultiModal, setUseMultiModal] = useState(false);
+  const [showCrossDeviceAuth, setShowCrossDeviceAuth] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -103,6 +105,14 @@ const AuthPage = ({ onLogin }) => {
 
     try {
       if (isLogin) {
+        // Check if this is a cross-device scenario
+        if (formData.email && !capabilities?.platformAuthenticator) {
+          // Show cross-device authentication options
+          setShowCrossDeviceAuth(true);
+          setLoading(false);
+          return;
+        }
+
         // Use multi-modal authentication if available
         if (useMultiModal && capabilities?.platformAuthenticator) {
           const result = await webauthnService.authenticate(formData.email || '');
@@ -122,9 +132,10 @@ const AuthPage = ({ onLogin }) => {
           // Fallback to original method
           const begin = await axios.post('/api/auth/login/begin', formData.email ? { username: formData.email } : {});
 
-          // If allowCredentials is empty, suggest QR/phone option in UI
-          if (Array.isArray(begin.data.allowCredentials) && begin.data.allowCredentials.length === 0 && !formData.email) {
-            toast('No local passkeys found. Enter your email to use your phone (QR).', { icon: 'ℹ️' });
+          // If allowCredentials is empty, suggest cross-device options
+          if (Array.isArray(begin.data.allowCredentials) && begin.data.allowCredentials.length === 0 && formData.email) {
+            toast('No local passkeys found. Use cross-device authentication.', { icon: 'ℹ️' });
+            setShowCrossDeviceAuth(true);
             setLoading(false);
             return;
           }
@@ -211,6 +222,35 @@ const AuthPage = ({ onLogin }) => {
     setUseMultiModal(!useMultiModal);
   };
 
+  const handleCrossDeviceBack = () => {
+    setShowCrossDeviceAuth(false);
+  };
+
+  const handleCrossDeviceSuccess = (userData) => {
+    onLogin(userData);
+    setShowCrossDeviceAuth(false);
+  };
+
+  // Show cross-device authentication if needed
+  if (showCrossDeviceAuth) {
+    return (
+      <div className="container">
+        <div style={{ 
+          minHeight: '100vh', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center' 
+        }}>
+          <CrossDeviceAuth
+            email={formData.email}
+            onBack={handleCrossDeviceBack}
+            onSuccess={handleCrossDeviceSuccess}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="container">
       <div style={{ 
@@ -252,6 +292,19 @@ const AuthPage = ({ onLogin }) => {
                   'Choose between device auth (Face ID, Fingerprint) or security key' :
                   'Use basic passkey authentication'
                 }
+              </p>
+            </div>
+          )}
+
+          {/* Cross-Device Authentication Info */}
+          {isLogin && webauthnSupported && (
+            <div className="card" style={{ background: '#1a2a2a', marginBottom: '16px', border: '1px solid #28a745' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <Smartphone size={16} color="#28a745" />
+                <span style={{ fontWeight: '500', color: '#28a745' }}>Sign in on Any Device</span>
+              </div>
+              <p style={{ fontSize: '12px', opacity: 0.8 }}>
+                Don't have your passkey on this device? Enter your email to use your phone, QR code, or security key.
               </p>
             </div>
           )}
@@ -414,6 +467,7 @@ const AuthPage = ({ onLogin }) => {
                 {useMultiModal && (
                   <li>Choose your preferred authentication method</li>
                 )}
+                <li>Sign in on any device with your phone or security key</li>
               </ul>
             </div>
           )}
