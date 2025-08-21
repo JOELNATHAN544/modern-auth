@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
+import ConfirmModal from './ConfirmModal';
 
 const EditTransactionModal = ({ open, transaction, onSave, onCancel }) => {
   const dialogRef = useRef(null);
   const lastFocused = useRef(null);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -58,13 +60,30 @@ const EditTransactionModal = ({ open, transaction, onSave, onCancel }) => {
 
         <div className="flex gap-3">
           <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
-          <button className="btn btn-success" onClick={() => onSave({ amount: parseFloat(amount), description })}>Save</button>
+          <button
+            className="btn btn-success"
+            onClick={() => setShowConfirm(true)}
+          >
+            Save
+          </button>
         </div>
       </div>
+      <ConfirmModal
+        open={showConfirm}
+        title="Save changes?"
+        body={`Save changes to this transaction for €${Number(amount || 0).toFixed(2)} — ${description}?`}
+        confirmText="Save"
+        onCancel={() => setShowConfirm(false)}
+        onConfirm={() => {
+          setShowConfirm(false);
+          onSave({ amount: parseFloat(amount), description });
+        }}
+      />
     </div>
   );
 };
 
 export default EditTransactionModal;
+
 
 
