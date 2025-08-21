@@ -331,7 +331,17 @@ app.post("/api/transactions", async (req, res) => {
     } else {
       user = await User.findById(userId);
       if (!user) {
-        return res.status(400).json({ error: "User not found" });
+        // Fallback: create user record with provided UUID (useful if client kept an old id)
+        try {
+          user = await User.createWithId(String(userId), {
+            username: "Demo User",
+            email: `demo+${String(userId)}@example.com`,
+            auth_type: "demo",
+          });
+          console.warn("User not found. Created fallback demo user with provided id.", { userId });
+        } catch (e) {
+          return res.status(400).json({ error: "User not found" });
+        }
       }
     }
 
