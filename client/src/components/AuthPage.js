@@ -7,7 +7,6 @@ import { startRegistration, startAuthentication } from '@simplewebauthn/browser'
 const AuthPage = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [authType, setAuthType] = useState('passkey'); // force passkey as default
-  const [registrationAttachment, setRegistrationAttachment] = useState('platform'); // 'platform' | 'cross-platform'
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -119,7 +118,6 @@ const AuthPage = ({ onLogin }) => {
         const begin = await axios.post('/api/auth/register/begin', {
           username: formData.email,
           displayName,
-          attachmentPreference: registrationAttachment
         });
 
         const attestation = await startRegistration(begin.data);
@@ -232,28 +230,6 @@ const AuthPage = ({ onLogin }) => {
               Passkey
             </button>
           </div>
-
-          {/* Registration attachment preference */}
-          {!isLogin && authType === 'passkey' && (
-            <div className="flex gap-2 mb-3" style={{ background: '#1f1f1f', padding: '6px', borderRadius: '8px' }}>
-              <button
-                type="button"
-                onClick={() => setRegistrationAttachment('platform')}
-                className={`btn ${registrationAttachment === 'platform' ? 'btn-success' : 'btn-secondary'}`}
-                style={{ flex: 1, padding: '6px 10px', fontSize: '12px' }}
-              >
-                Use this device
-              </button>
-              <button
-                type="button"
-                onClick={() => setRegistrationAttachment('cross-platform')}
-                className={`btn ${registrationAttachment === 'cross-platform' ? 'btn-success' : 'btn-secondary'}`}
-                style={{ flex: 1, padding: '6px 10px', fontSize: '12px' }}
-              >
-                Use phone / security key
-              </button>
-            </div>
-          )}
 
           <form onSubmit={handleSubmit}>
             {!isLogin && (
