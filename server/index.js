@@ -127,13 +127,13 @@ app.post("/api/auth/register/options", async (req, res) => {
       userID: user.id,
       userName: user.username,
       userDisplayName: user.username,
-      attestationType: "none",
-      excludeCredentials: [],
+      // Remove attachmentPreference parameter
       authenticatorSelection: {
-        residentKey: "preferred",
-        userVerification: "preferred",
-        authenticatorAttachment: undefined, // Allow both platform and cross-platform
+        residentKey: "required",
+        userVerification: "required",
+        // Remove dynamic authenticatorAttachment setting
       },
+      supportedAlgorithmIDs: [-7, -257],
     });
 
     // Store challenge and user temporarily
