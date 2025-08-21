@@ -2,6 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { CreditCard, Lock, Euro, AlertTriangle, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import TransactionCard from './TransactionCard';
+import ConfirmModal from './ConfirmModal';
+import EditTransactionModal from './EditTransactionModal';
 
 const TransactionPage = ({ user }) => {
   const [formData, setFormData] = useState({
@@ -13,6 +16,9 @@ const TransactionPage = ({ user }) => {
   const [otp, setOtp] = useState('');
   const [currentTransaction, setCurrentTransaction] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [targetTx, setTargetTx] = useState(null);
 
   // Fetch transaction history on component mount
   const fetchTransactions = useCallback(async () => {
@@ -99,6 +105,56 @@ const TransactionPage = ({ user }) => {
       return { status: 'High Value', color: 'warning', icon: <AlertTriangle size={16} /> };
     }
     return { status: 'Standard', color: 'success', icon: <CheckCircle size={16} /> };
+  };
+
+  const handleOpenDelete = (id, tx) => {
+    setTargetTx(tx);
+    setConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    const tx = targetTx;
+    setConfirmOpen(false);
+    if (!tx) return;
+    // optimistic remove
+    const prev = transactions;
+    setTransactions((list) => list.filter((t) => t.id !== tx.id));
+    try {
+      await axios.delete(`/api/transactions/${tx.id}`);
+      toast.success('Transaction deleted successfully.');
+      // analytics event
+      console.log('analytics: transaction_delete_confirmed', { id: tx.id });
+    } catch (e) {
+      setTransactions(prev); // revert
+      toast.error(e.response?.data?.error || 'Failed to delete transaction');
+      console.log('analytics: transaction_delete_failed', { id: tx.id });
+    } finally {
+      setTargetTx(null);
+    }
+  };
+
+  const handleOpenEdit = (id, tx) => {
+    setTargetTx(tx);
+    setEditOpen(true);
+  };
+
+  const handleSaveEdit = async (updates) => {
+    const tx = targetTx;
+    setEditOpen(false);
+    if (!tx) return;
+    const prev = transactions;
+    // optimistic update
+    setTransactions((list) => list.map((t) => (t.id === tx.id ? { ...t, ...updates } : t)));
+    try {
+      await axios.patch(`/api/transactions/${tx.id}`, updates);
+      toast.success('Transaction updated successfully.');
+      console.log('analytics: transaction_edit_confirmed', { id: tx.id });
+    } catch (e) {
+      setTransactions(prev); // revert
+      toast.error(e.response?.data?.error || 'Failed to update transaction');
+    } finally {
+      setTargetTx(null);
+    }
   };
 
   return (
@@ -233,37 +289,19 @@ const TransactionPage = ({ user }) => {
             <div className="space-y-3">
               {transactions.map((transaction) => {
                 const status = getTransactionStatus(transaction);
-                const amt = Number(transaction.amount) || 0;
-                const createdAt = transaction.created_at || transaction.timestamp;
+                const statusPill = (
+                  <span className={`badge badge-${status.color}`}>
+                    {status.icon}
+                    {status.status}
+                  </span>
+                );
                 return (
-                  <div 
-                    key={transaction.id} 
-                    className="card" 
-                    style={{ 
-                      background: '#2a2a2a', 
-                      padding: '16px',
-                      border: '1px solid #444'
-                    }}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span style={{ fontWeight: '600' }}>€{amt.toFixed(2)}</span>
-                      <span className={`badge badge-${status.color}`}>
-                        {status.icon}
-                        {status.status}
-                      </span>
-                    </div>
-                    <p style={{ fontSize: '14px', color: '#ccc', marginBottom: '8px' }}>
-                      {transaction.description}
-                    </p>
-                    <div className="flex items-center justify-between">
-                      <span style={{ fontSize: '12px', color: '#888' }}>
-                        {createdAt ? new Date(createdAt).toLocaleString() : ''}
-                      </span>
-                      <span style={{ fontSize: '12px', color: '#888' }}>
-                        ID: {transaction.id.slice(0, 8)}...
-                      </span>
-                    </div>
-                  </div>
+                  <TransactionCard
+                    key={transaction.id}
+                    transaction={{ ...transaction, statusPill }}
+                    onEdit={handleOpenEdit}
+                    onDelete={handleOpenDelete}
+                  />
                 );
               })}
             </div>
@@ -363,6 +401,25 @@ const TransactionPage = ({ user }) => {
           </div>
         </div>
       )}
+
+      {/* Confirm Delete */}
+      <ConfirmModal
+        open={confirmOpen}
+        title="Delete transaction?"
+        body={targetTx ? `This action will permanently remove €${Number(targetTx.amount || 0).toFixed(2)} — ${targetTx.description}. Are you sure?` : ''}
+        confirmText="Delete"
+        destructive
+        onCancel={() => setConfirmOpen(false)}
+        onConfirm={handleConfirmDelete}
+      />
+
+      {/* Edit */}
+      <EditTransactionModal
+        open={editOpen}
+        transaction={targetTx}
+        onCancel={() => setEditOpen(false)}
+        onSave={handleSaveEdit}
+      />
     </div>
   );
 };

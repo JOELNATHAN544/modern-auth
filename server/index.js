@@ -331,7 +331,17 @@ app.post("/api/transactions", async (req, res) => {
     } else {
       user = await User.findById(userId);
       if (!user) {
-        return res.status(400).json({ error: "User not found" });
+        // Fallback: create user record with provided UUID (useful if client kept an old id)
+        try {
+          user = await User.createWithId(String(userId), {
+            username: "Demo User",
+            email: `demo+${String(userId)}@example.com`,
+            auth_type: "demo",
+          });
+          console.warn("User not found. Created fallback demo user with provided id.", { userId });
+        } catch (e) {
+          return res.status(400).json({ error: "User not found" });
+        }
       }
     }
 
@@ -453,6 +463,36 @@ app.get("/api/transactions", async (req, res) => {
   } catch (error) {
     console.error("Get transactions error:", error);
     res.status(500).json({ error: "Failed to fetch transactions" });
+  }
+});
+
+// Update a transaction (amount/description)
+app.patch("/api/transactions/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, description } = req.body || {};
+    if (amount === undefined && description === undefined) {
+      return res.status(400).json({ error: "No fields to update" });
+    }
+    const updated = await Transaction.update(id, { amount, description });
+    if (!updated) return res.status(404).json({ error: "Transaction not found" });
+    res.json({ success: true, transaction: updated });
+  } catch (e) {
+    console.error("PATCH /api/transactions/:id error:", e);
+    res.status(500).json({ error: "Failed to update transaction" });
+  }
+});
+
+// Delete a transaction
+app.delete("/api/transactions/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await Transaction.delete(id);
+    if (!deleted) return res.status(404).json({ error: "Transaction not found" });
+    res.json({ success: true });
+  } catch (e) {
+    console.error("DELETE /api/transactions/:id error:", e);
+    res.status(500).json({ error: "Failed to delete transaction" });
   }
 });
 

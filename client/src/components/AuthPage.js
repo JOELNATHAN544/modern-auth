@@ -55,7 +55,7 @@ const AuthPage = ({ onLogin }) => {
         setWebauthnError('WebAuthn is not supported in this browser');
         return;
       }
-      
+
       // Detect device capabilities
       const caps = await deviceCapabilities.detectCapabilities();
       setCapabilities(caps);
@@ -184,7 +184,7 @@ const AuthPage = ({ onLogin }) => {
 
           const credential = await startRegistration(begin.data);
           const complete = await axios.post('/api/auth/register/complete', {
-            credential,
+          credential,
             expectedChallenge: begin.data.challenge,
           });
 

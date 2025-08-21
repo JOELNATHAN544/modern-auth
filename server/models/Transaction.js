@@ -179,6 +179,32 @@ class Transaction {
     const result = await query(sql, [userId]);
     return result.rows;
   }
+
+  // Update editable fields (amount, description)
+  static async update(id, updates) {
+    const { amount, description } = updates;
+    const sql = `
+      UPDATE transactions
+      SET 
+        amount = COALESCE($2, amount),
+        description = COALESCE($3, description)
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await query(sql, [id, amount, description]);
+    return result.rows[0] || null;
+  }
+
+  // Delete a transaction by ID
+  static async delete(id) {
+    const sql = `
+      DELETE FROM transactions
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await query(sql, [id]);
+    return result.rows[0] || null;
+  }
 }
 
 module.exports = Transaction;
