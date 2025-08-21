@@ -456,6 +456,36 @@ app.get("/api/transactions", async (req, res) => {
   }
 });
 
+// Update a transaction (amount/description)
+app.patch("/api/transactions/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, description } = req.body || {};
+    if (amount === undefined && description === undefined) {
+      return res.status(400).json({ error: "No fields to update" });
+    }
+    const updated = await Transaction.update(id, { amount, description });
+    if (!updated) return res.status(404).json({ error: "Transaction not found" });
+    res.json({ success: true, transaction: updated });
+  } catch (e) {
+    console.error("PATCH /api/transactions/:id error:", e);
+    res.status(500).json({ error: "Failed to update transaction" });
+  }
+});
+
+// Delete a transaction
+app.delete("/api/transactions/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await Transaction.delete(id);
+    if (!deleted) return res.status(404).json({ error: "Transaction not found" });
+    res.json({ success: true });
+  } catch (e) {
+    console.error("DELETE /api/transactions/:id error:", e);
+    res.status(500).json({ error: "Failed to delete transaction" });
+  }
+});
+
 // PART 1B: WebAuthn Passkeys (DB-backed, spec-aligned endpoints)
 
 // Password registration (for MFA with passkey)
