@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, Link, useNavigate, useLocation } from 'react-router-dom';
-import { Shield, BarChart3, CreditCard, Home, LogOut } from 'lucide-react';
+import { Shield, BarChart3, CreditCard, Home, LogOut, Fingerprint } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import AuthPage from './components/AuthPage';
@@ -8,6 +8,7 @@ import Dashboard from './components/Dashboard';
 import TransactionPage from './components/TransactionPage';
 import AnalyticsPage from './components/AnalyticsPage';
 import WebAuthnTest from './components/WebAuthnTest';
+import MultiModalTest from './components/MultiModalTest';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -134,6 +135,10 @@ function App() {
               <Shield size={16} />
               WebAuthn Test
             </Link>
+            <Link to="/multi-modal" style={getTabStyles('/multi-modal')}>
+              <Fingerprint size={16} />
+              Multi-Modal Test
+            </Link>
           </div>
         </div>
       </div>
@@ -145,6 +150,7 @@ function App() {
           <Route path="/transactions" element={<TransactionPage user={user} />} />
           <Route path="/analytics" element={<AnalyticsPage />} />
           <Route path="/test" element={<WebAuthnTest />} />
+          <Route path="/multi-modal" element={<MultiModalTest />} />
           <Route path="/" element={<Dashboard user={user} />} />
         </Routes>
       </div>

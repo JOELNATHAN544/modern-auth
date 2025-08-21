@@ -127,13 +127,16 @@ app.post("/api/auth/register/options", async (req, res) => {
       userID: user.id,
       userName: user.username,
       userDisplayName: user.username,
-      attestationType: "none",
-      excludeCredentials: [],
+      // Support multi-modal authentication
       authenticatorSelection: {
-        residentKey: "preferred",
-        userVerification: "preferred",
-        authenticatorAttachment: undefined, // Allow both platform and cross-platform
+        residentKey: "required",
+        userVerification: "required",
+        // Allow both platform and cross-platform authenticators
+        authenticatorAttachment: req.body.authMethod === 'device' ? 'platform' : 
+                                req.body.authMethod === 'pin' ? 'cross-platform' : 
+                                undefined // Let browser choose for 'both'
       },
+      supportedAlgorithmIDs: [-7, -257],
     });
 
     // Store challenge and user temporarily
@@ -222,7 +225,11 @@ app.post("/api/auth/login/options", async (req, res) => {
         type: "public-key",
         transports: cred.transports,
       })),
-      userVerification: "preferred",
+      userVerification: "required",
+      // Support multi-modal authentication
+      authenticatorAttachment: req.body.authMethod === 'device' ? 'platform' : 
+                              req.body.authMethod === 'pin' ? 'cross-platform' : 
+                              undefined // Let browser choose for 'both'
     });
 
     challenges.set(options.challenge, {
@@ -527,6 +534,10 @@ app.post('/api/auth/register/begin', async (req, res) => {
       authenticatorSelection: {
         residentKey: 'preferred',
         userVerification: 'required',
+        // Support multi-modal authentication
+        authenticatorAttachment: req.body.authMethod === 'device' ? 'platform' : 
+                                req.body.authMethod === 'pin' ? 'cross-platform' : 
+                                undefined // Let browser choose for 'both'
       },
       excludeCredentials: [],
     });
@@ -632,6 +643,10 @@ app.post('/api/auth/login/begin', async (req, res) => {
           transports: c.transports || [],
         })),
         userVerification: 'required',
+        // Support multi-modal authentication
+        authenticatorAttachment: req.body.authMethod === 'device' ? 'platform' : 
+                                req.body.authMethod === 'pin' ? 'cross-platform' : 
+                                undefined // Let browser choose for 'both'
       });
 
       const challengeBuf = Buffer.from(options.challenge, 'base64url');
@@ -649,6 +664,10 @@ app.post('/api/auth/login/begin', async (req, res) => {
       rpID,
       allowCredentials: [],
       userVerification: 'required',
+      // Support multi-modal authentication
+      authenticatorAttachment: req.body.authMethod === 'device' ? 'platform' : 
+                              req.body.authMethod === 'pin' ? 'cross-platform' : 
+                              undefined // Let browser choose for 'both'
     });
 
     const challengeBuf = Buffer.from(options.challenge, 'base64url');

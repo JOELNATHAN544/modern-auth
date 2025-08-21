@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Key, Fingerprint, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { Shield, Key, Fingerprint, Eye, EyeOff, AlertTriangle, Settings } from 'lucide-react';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
+import deviceCapabilities from '../services/deviceCapabilities';
+import webauthnService from '../services/webauthnService';
 
 const AuthPage = ({ onLogin }) => {
   const [isLogin, setIsLogin] = useState(true);
-  const [authType, setAuthType] = useState('passkey'); // force passkey as default
-  const [registrationAttachment, setRegistrationAttachment] = useState('platform'); // 'platform' | 'cross-platform'
+  const [authType, setAuthType] = useState('passkey');
+  const [useMultiModal, setUseMultiModal] = useState(false);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -17,6 +19,7 @@ const AuthPage = ({ onLogin }) => {
   const [loading, setLoading] = useState(false);
   const [webauthnSupported, setWebauthnSupported] = useState(false);
   const [webauthnError, setWebauthnError] = useState(null);
+  const [capabilities, setCapabilities] = useState(null);
 
   // Check WebAuthn support on component mount
   useEffect(() => {
@@ -43,16 +46,24 @@ const AuthPage = ({ onLogin }) => {
     })();
   }, []);
 
-  const checkWebAuthnSupport = () => {
+  const checkWebAuthnSupport = async () => {
     try {
       if (!window.PublicKeyCredential) {
         setWebauthnSupported(false);
         setWebauthnError('WebAuthn is not supported in this browser');
         return;
       }
-      // Consider supported if WebAuthn API is available (allow phone/security key)
-            setWebauthnSupported(true);
-            setWebauthnError(null);
+      
+      // Detect device capabilities
+      const caps = await deviceCapabilities.detectCapabilities();
+      setCapabilities(caps);
+      setWebauthnSupported(caps.webauthnSupported);
+      setWebauthnError(caps.webauthnSupported ? null : 'WebAuthn check failed');
+      
+      // Enable multi-modal if platform authenticator is available
+      if (caps.platformAuthenticator) {
+        setUseMultiModal(true);
+      }
     } catch (error) {
       setWebauthnSupported(false);
       setWebauthnError('WebAuthn check failed');
@@ -92,69 +103,97 @@ const AuthPage = ({ onLogin }) => {
 
     try {
       if (isLogin) {
-        // If email provided, trigger cross-device/QR-capable flow
-        const begin = await axios.post('/api/auth/login/begin', formData.email ? { username: formData.email } : {});
+        // Use multi-modal authentication if available
+        if (useMultiModal && capabilities?.platformAuthenticator) {
+          const result = await webauthnService.authenticate(formData.email || '');
+          if (result.success) {
+            localStorage.setItem('token', result.data.token);
+            localStorage.setItem('user', JSON.stringify(result.data.user));
+            onLogin(result.data.user);
+            if (result.usedFallback) {
+              toast.success(`Logged in using fallback method: ${result.fallbackMethod}`);
+            } else {
+              toast.success('Logged in with passkey');
+            }
+          } else {
+            throw new Error(result.error);
+          }
+        } else {
+          // Fallback to original method
+          const begin = await axios.post('/api/auth/login/begin', formData.email ? { username: formData.email } : {});
 
-        // If allowCredentials is empty, suggest QR/phone option in UI
-        if (Array.isArray(begin.data.allowCredentials) && begin.data.allowCredentials.length === 0 && !formData.email) {
-          toast('No local passkeys found. Enter your email to use your phone (QR).', { icon: 'ℹ️' });
-          setLoading(false);
-          return;
-        }
+          // If allowCredentials is empty, suggest QR/phone option in UI
+          if (Array.isArray(begin.data.allowCredentials) && begin.data.allowCredentials.length === 0 && !formData.email) {
+            toast('No local passkeys found. Enter your email to use your phone (QR).', { icon: 'ℹ️' });
+            setLoading(false);
+            return;
+          }
 
-        const assertion = await startAuthentication(begin.data);
-        const complete = await axios.post('/api/auth/login/complete', {
-          credential: assertion,
-          expectedChallenge: begin.data.challenge,
-        });
-        if (complete.data.success) {
-          localStorage.setItem('token', complete.data.token);
-          localStorage.setItem('user', JSON.stringify(complete.data.user));
-          onLogin(complete.data.user);
-          toast.success('Login successful!');
+          const assertion = await startAuthentication(begin.data);
+          const complete = await axios.post('/api/auth/login/complete', {
+            credential: assertion,
+            expectedChallenge: begin.data.challenge,
+          });
+
+          if (complete.data.success) {
+            localStorage.setItem('token', complete.data.token);
+            localStorage.setItem('user', JSON.stringify(complete.data.user));
+            onLogin(complete.data.user);
+            toast.success('Logged in with passkey');
+          } else {
+            throw new Error(complete.data.error || 'Authentication failed');
+          }
         }
       } else {
-        // Register with passkey (new endpoints)
-        const displayName = formData.username || formData.email;
-        const begin = await axios.post('/api/auth/register/begin', {
-          username: formData.email,
-          displayName,
-          attachmentPreference: registrationAttachment
-        });
+        // Registration
+        if (useMultiModal && capabilities?.platformAuthenticator) {
+          const result = await webauthnService.register(
+            formData.email, 
+            formData.username, 
+            formData.username
+          );
+          if (result.success) {
+            localStorage.setItem('token', result.data.token);
+            localStorage.setItem('user', JSON.stringify(result.data.user));
+            onLogin(result.data.user);
+            if (result.usedFallback) {
+              toast.success(`Account created using fallback method: ${result.fallbackMethod}`);
+            } else {
+              toast.success('Account created successfully');
+            }
+          } else {
+            throw new Error(result.error);
+          }
+        } else {
+          // Fallback to original method
+          const begin = await axios.post('/api/auth/register/begin', {
+            username: formData.email,
+            displayName: formData.username,
+          });
 
-        const attestation = await startRegistration(begin.data);
+          const credential = await startRegistration(begin.data);
+          const complete = await axios.post('/api/auth/register/complete', {
+            credential,
+            expectedChallenge: begin.data.challenge,
+          });
 
-        const complete = await axios.post('/api/auth/register/complete', {
-          credential: attestation,
-          expectedChallenge: begin.data.challenge
-        });
-
-        if (complete.data.success) {
-          localStorage.setItem('token', complete.data.token);
-          localStorage.setItem('user', JSON.stringify(complete.data.user));
-          onLogin(complete.data.user);
-          toast.success('Registration successful!');
+          if (complete.data.success) {
+            localStorage.setItem('token', complete.data.token);
+            localStorage.setItem('user', JSON.stringify(complete.data.user));
+            onLogin(complete.data.user);
+            toast.success('Account created successfully');
+          } else {
+            throw new Error(complete.data.error || 'Registration failed');
+          }
         }
       }
     } catch (error) {
       console.error('Passkey auth error:', error);
-      if (error.name === 'InvalidStateError') {
-        toast.error('This passkey is already registered. Please try logging in.');
-      } else if (error.name === 'NotAllowedError') {
-        toast.error('Authentication was cancelled by the user.');
-      } else if (error.name === 'NotSupportedError') {
-        toast.error('Passkeys not supported on this device/browser. Try Chrome with passkeys enabled.');
-      } else if (error.name === 'SecurityError') {
-        toast.error('Security error. Please ensure you are using HTTPS or localhost.');
-        } else {
-          toast.error(error.response?.data?.error || 'Authentication failed');
-      }
+      toast.error(error.message || 'Authentication failed');
     } finally {
       setLoading(false);
     }
   };
-
-  // Demo mode removed – passkeys required
 
   const handleSubmit = (e) => {
     if (authType === 'passkey') {
@@ -166,6 +205,10 @@ const AuthPage = ({ onLogin }) => {
 
   const handleAuthTypeChange = (type) => {
     setAuthType(type);
+  };
+
+  const toggleMultiModal = () => {
+    setUseMultiModal(!useMultiModal);
   };
 
   return (
@@ -186,6 +229,32 @@ const AuthPage = ({ onLogin }) => {
               {isLogin ? 'Sign in to your account' : 'Set up your secure account'}
             </p>
           </div>
+
+          {/* Multi-Modal Toggle */}
+          {webauthnSupported && capabilities?.platformAuthenticator && (
+            <div className="card" style={{ background: '#2a2a2a', marginBottom: '16px' }}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Settings size={16} color="#007bff" />
+                  <span style={{ fontSize: '14px', fontWeight: '500' }}>Enhanced Authentication</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={toggleMultiModal}
+                  className={`btn ${useMultiModal ? 'btn-success' : 'btn-secondary'}`}
+                  style={{ fontSize: '12px', padding: '4px 8px' }}
+                >
+                  {useMultiModal ? 'ON' : 'OFF'}
+                </button>
+              </div>
+              <p style={{ fontSize: '12px', opacity: 0.8, marginTop: '4px' }}>
+                {useMultiModal ? 
+                  'Choose between device auth (Face ID, Fingerprint) or security key' :
+                  'Use basic passkey authentication'
+                }
+              </p>
+            </div>
+          )}
 
           {/* WebAuthn Compatibility Warning */}
           {!webauthnSupported && (
@@ -232,28 +301,6 @@ const AuthPage = ({ onLogin }) => {
               Passkey
             </button>
           </div>
-
-          {/* Registration attachment preference */}
-          {!isLogin && authType === 'passkey' && (
-            <div className="flex gap-2 mb-3" style={{ background: '#1f1f1f', padding: '6px', borderRadius: '8px' }}>
-              <button
-                type="button"
-                onClick={() => setRegistrationAttachment('platform')}
-                className={`btn ${registrationAttachment === 'platform' ? 'btn-success' : 'btn-secondary'}`}
-                style={{ flex: 1, padding: '6px 10px', fontSize: '12px' }}
-              >
-                Use this device
-              </button>
-              <button
-                type="button"
-                onClick={() => setRegistrationAttachment('cross-platform')}
-                className={`btn ${registrationAttachment === 'cross-platform' ? 'btn-success' : 'btn-secondary'}`}
-                style={{ flex: 1, padding: '6px 10px', fontSize: '12px' }}
-              >
-                Use phone / security key
-              </button>
-            </div>
-          )}
 
           <form onSubmit={handleSubmit}>
             {!isLogin && (
@@ -349,7 +396,7 @@ const AuthPage = ({ onLogin }) => {
                 textDecoration: 'underline'
               }}
             >
-              {isLogin ? "Don&apos;t have an account? Sign up" : 'Already have an account? Sign in'}
+              {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
             </button>
           </div>
 
@@ -364,6 +411,9 @@ const AuthPage = ({ onLogin }) => {
                 <li>No passwords to remember</li>
                 <li>Works across all your devices</li>
                 <li>Faster and more secure</li>
+                {useMultiModal && (
+                  <li>Choose your preferred authentication method</li>
+                )}
               </ul>
             </div>
           )}
