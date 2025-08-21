@@ -187,8 +187,7 @@ class Transaction {
       UPDATE transactions
       SET 
         amount = COALESCE($2, amount),
-        description = COALESCE($3, description),
-        updated_at = CURRENT_TIMESTAMP
+        description = COALESCE($3, description)
       WHERE id = $1
       RETURNING *
     `;
