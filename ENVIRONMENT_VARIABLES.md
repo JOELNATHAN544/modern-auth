@@ -133,6 +133,7 @@ MAINTENANCE_MODE=false
 ```
 
 This script will:
+
 - Check PostgreSQL installation
 - Create database and user
 - Generate `.env` file automatically
@@ -142,6 +143,7 @@ This script will:
 ### **Option 2: Manual Setup**
 
 #### **Step 1: Create .env file**
+
 ```bash
 # Copy the example file
 cp env.example .env
@@ -151,6 +153,7 @@ nano .env
 ```
 
 #### **Step 2: Update Database Settings**
+
 ```env
 # Replace these values with your actual database credentials
 DATABASE_URL=postgresql://your_username:your_password@localhost:5432/modern_auth_db
@@ -162,12 +165,14 @@ DB_PASSWORD=your_password
 ```
 
 #### **Step 3: Generate JWT Secret**
+
 ```bash
 # Generate a secure JWT secret
 openssl rand -base64 32
 ```
 
 Then update your `.env` file:
+
 ```env
 JWT_SECRET=your-generated-secret-here
 ```
