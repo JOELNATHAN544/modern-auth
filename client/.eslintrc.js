@@ -5,34 +5,32 @@ module.exports = {
     node: true,
   },
   extends: [
-    'eslint:recommended',
-    'plugin:react/recommended',
-    'plugin:react-hooks/recommended',
+    "eslint:recommended",
+    "plugin:react/recommended",
+    "plugin:react-hooks/recommended",
   ],
   parserOptions: {
     ecmaFeatures: {
       jsx: true,
     },
     ecmaVersion: 12,
-    sourceType: 'module',
+    sourceType: "module",
   },
-  plugins: [
-    'react',
-  ],
+  plugins: ["react"],
   rules: {
-    'react/react-in-jsx-scope': 'off',
-    'react/prop-types': 'off',
-    'no-unused-vars': 'warn',
-    'no-undef': 'warn',
-    'react/no-unescaped-entities': 'off',
+    "react/react-in-jsx-scope": "off",
+    "react/prop-types": "off",
+    "no-unused-vars": "warn",
+    "no-undef": "warn",
+    "react/no-unescaped-entities": "off",
   },
   globals: {
-    PublicKeyCredential: 'readonly',
-    confirm: 'readonly',
+    PublicKeyCredential: "readonly",
+    confirm: "readonly",
   },
   settings: {
     react: {
-      version: 'detect',
+      version: "detect",
     },
   },
 };
