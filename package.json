@@ -11,7 +11,13 @@
     "install-all": "npm install && cd server && npm install && cd ../client && npm install",
     "test-backend": "node test-backend.js"
   },
-  "keywords": ["webauthn", "passkeys", "authentication", "react", "nodejs"],
+  "keywords": [
+    "webauthn",
+    "passkeys",
+    "authentication",
+    "react",
+    "nodejs"
+  ],
   "author": "Your Name",
   "license": "MIT",
   "devDependencies": {
