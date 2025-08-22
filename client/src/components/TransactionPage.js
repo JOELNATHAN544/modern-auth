@@ -1,19 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { CreditCard, Lock, Euro, AlertTriangle, CheckCircle } from 'lucide-react';
-import toast from 'react-hot-toast';
-import axios from 'axios';
-import TransactionCard from './TransactionCard';
-import ConfirmModal from './ConfirmModal';
-import EditTransactionModal from './EditTransactionModal';
+import React, { useState, useEffect, useCallback } from "react";
+import {
+  CreditCard,
+  Lock,
+  Euro,
+  AlertTriangle,
+  CheckCircle,
+} from "lucide-react";
+import toast from "react-hot-toast";
+import axios from "axios";
+import TransactionCard from "./TransactionCard";
+import ConfirmModal from "./ConfirmModal";
+import EditTransactionModal from "./EditTransactionModal";
 
 const TransactionPage = ({ user }) => {
   const [formData, setFormData] = useState({
-    amount: '',
-    description: ''
+    amount: "",
+    description: "",
   });
   const [loading, setLoading] = useState(false);
   const [stepUpModal, setStepUpModal] = useState(false);
-  const [otp, setOtp] = useState('');
+  const [otp, setOtp] = useState("");
   const [currentTransaction, setCurrentTransaction] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -26,7 +32,7 @@ const TransactionPage = ({ user }) => {
       const response = await axios.get(`/api/transactions?userId=${user.id}`);
       setTransactions(response.data);
     } catch (error) {
-      console.error('Failed to fetch transactions:', error);
+      console.error("Failed to fetch transactions:", error);
       // Don't show error toast for this, just log it
     }
   }, [user.id]);
@@ -38,7 +44,7 @@ const TransactionPage = ({ user }) => {
   const handleInputChange = (e) => {
     setFormData({
       ...formData,
-      [e.target.name]: e.target.value
+      [e.target.name]: e.target.value,
     });
   };
 
@@ -47,26 +53,30 @@ const TransactionPage = ({ user }) => {
     setLoading(true);
 
     try {
-      const response = await axios.post('/api/transactions', {
+      const response = await axios.post("/api/transactions", {
         amount: parseFloat(formData.amount),
         description: formData.description,
-        userId: user.id
+        userId: user.id,
       });
 
       if (response.data.requiresStepUp) {
         // Preserve amount/description for display in modal
-        setCurrentTransaction({ ...response.data, amount: parseFloat(formData.amount), description: formData.description });
+        setCurrentTransaction({
+          ...response.data,
+          amount: parseFloat(formData.amount),
+          description: formData.description,
+        });
         setStepUpModal(true);
-        toast.success('Step-up authentication required for this transaction');
+        toast.success("Step-up authentication required for this transaction");
       } else {
-        setTransactions(prev => [response.data.transaction, ...prev]);
-        setFormData({ amount: '', description: '' });
-        toast.success('Transaction completed successfully!');
+        setTransactions((prev) => [response.data.transaction, ...prev]);
+        setFormData({ amount: "", description: "" });
+        toast.success("Transaction completed successfully!");
         // Refresh transaction list
         fetchTransactions();
       }
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Transaction failed');
+      toast.error(error.response?.data?.error || "Transaction failed");
     } finally {
       setLoading(false);
     }
@@ -77,23 +87,23 @@ const TransactionPage = ({ user }) => {
     setLoading(true);
 
     try {
-      const response = await axios.post('/api/transactions/stepup', {
+      const response = await axios.post("/api/transactions/stepup", {
         otp,
-        transactionId: currentTransaction.transactionId
+        transactionId: currentTransaction.transactionId,
       });
 
       if (response.data.success) {
-        setTransactions(prev => [response.data.transaction, ...prev]);
+        setTransactions((prev) => [response.data.transaction, ...prev]);
         setStepUpModal(false);
-        setOtp('');
+        setOtp("");
         setCurrentTransaction(null);
-        setFormData({ amount: '', description: '' });
-        toast.success('Step-up authentication successful!');
+        setFormData({ amount: "", description: "" });
+        toast.success("Step-up authentication successful!");
         // Refresh transaction list
         fetchTransactions();
       }
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Step-up verification failed');
+      toast.error(error.response?.data?.error || "Step-up verification failed");
     } finally {
       setLoading(false);
     }
@@ -102,9 +112,17 @@ const TransactionPage = ({ user }) => {
   const getTransactionStatus = (transaction) => {
     const amt = Number(transaction.amount);
     if (amt > 150) {
-      return { status: 'High Value', color: 'warning', icon: <AlertTriangle size={16} /> };
+      return {
+        status: "High Value",
+        color: "warning",
+        icon: <AlertTriangle size={16} />,
+      };
     }
-    return { status: 'Standard', color: 'success', icon: <CheckCircle size={16} /> };
+    return {
+      status: "Standard",
+      color: "success",
+      icon: <CheckCircle size={16} />,
+    };
   };
 
   const handleOpenDelete = (id, tx) => {
@@ -121,13 +139,13 @@ const TransactionPage = ({ user }) => {
     setTransactions((list) => list.filter((t) => t.id !== tx.id));
     try {
       await axios.delete(`/api/transactions/${tx.id}`);
-      toast.success('Transaction deleted successfully.');
+      toast.success("Transaction deleted successfully.");
       // analytics event
-      console.log('analytics: transaction_delete_confirmed', { id: tx.id });
+      console.log("analytics: transaction_delete_confirmed", { id: tx.id });
     } catch (e) {
       setTransactions(prev); // revert
-      toast.error(e.response?.data?.error || 'Failed to delete transaction');
-      console.log('analytics: transaction_delete_failed', { id: tx.id });
+      toast.error(e.response?.data?.error || "Failed to delete transaction");
+      console.log("analytics: transaction_delete_failed", { id: tx.id });
     } finally {
       setTargetTx(null);
     }
@@ -144,14 +162,16 @@ const TransactionPage = ({ user }) => {
     if (!tx) return;
     const prev = transactions;
     // optimistic update
-    setTransactions((list) => list.map((t) => (t.id === tx.id ? { ...t, ...updates } : t)));
+    setTransactions((list) =>
+      list.map((t) => (t.id === tx.id ? { ...t, ...updates } : t)),
+    );
     try {
       await axios.patch(`/api/transactions/${tx.id}`, updates);
-      toast.success('Transaction updated successfully.');
-      console.log('analytics: transaction_edit_confirmed', { id: tx.id });
+      toast.success("Transaction updated successfully.");
+      console.log("analytics: transaction_edit_confirmed", { id: tx.id });
     } catch (e) {
       setTransactions(prev); // revert
-      toast.error(e.response?.data?.error || 'Failed to update transaction');
+      toast.error(e.response?.data?.error || "Failed to update transaction");
     } finally {
       setTargetTx(null);
     }
@@ -163,8 +183,12 @@ const TransactionPage = ({ user }) => {
         <div className="flex items-center gap-3 mb-4">
           <CreditCard size={24} color="#007bff" />
           <div>
-            <h1 style={{ fontSize: '24px', fontWeight: '600' }}>Transaction Center</h1>
-            <p className="text-muted">Test step-up authentication for high-value transactions</p>
+            <h1 style={{ fontSize: "24px", fontWeight: "600" }}>
+              Transaction Center
+            </h1>
+            <p className="text-muted">
+              Test step-up authentication for high-value transactions
+            </p>
           </div>
         </div>
       </div>
@@ -172,14 +196,20 @@ const TransactionPage = ({ user }) => {
       <div className="grid grid-2">
         {/* Transaction Form */}
         <div className="card">
-          <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px' }}>
+          <h3
+            style={{
+              fontSize: "18px",
+              fontWeight: "600",
+              marginBottom: "16px",
+            }}
+          >
             Create New Transaction
           </h3>
 
           <form onSubmit={handleTransaction}>
             <div className="form-group">
               <label className="form-label">Amount (€)</label>
-              <div style={{ position: 'relative' }}>
+              <div style={{ position: "relative" }}>
                 <input
                   type="number"
                   name="amount"
@@ -191,28 +221,30 @@ const TransactionPage = ({ user }) => {
                   min="0"
                   required
                 />
-                <Euro 
-                  size={16} 
+                <Euro
+                  size={16}
                   style={{
-                    position: 'absolute',
-                    right: '12px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: '#888'
+                    position: "absolute",
+                    right: "12px",
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    color: "#888",
                   }}
                 />
               </div>
               {formData.amount > 150 && (
-                <div style={{ 
-                  marginTop: '8px', 
-                  padding: '8px 12px', 
-                  background: '#fff3cd', 
-                  border: '1px solid #ffeaa7',
-                  borderRadius: '4px',
-                  color: '#856404',
-                  fontSize: '14px'
-                }}>
-                  <AlertTriangle size={14} style={{ marginRight: '6px' }} />
+                <div
+                  style={{
+                    marginTop: "8px",
+                    padding: "8px 12px",
+                    background: "#fff3cd",
+                    border: "1px solid #ffeaa7",
+                    borderRadius: "4px",
+                    color: "#856404",
+                    fontSize: "14px",
+                  }}
+                >
+                  <AlertTriangle size={14} style={{ marginRight: "6px" }} />
                   Transactions over €150 require step-up authentication
                 </div>
               )}
@@ -234,7 +266,7 @@ const TransactionPage = ({ user }) => {
             <button
               type="submit"
               className="btn"
-              style={{ width: '100%' }}
+              style={{ width: "100%" }}
               disabled={loading}
             >
               {loading ? (
@@ -252,11 +284,24 @@ const TransactionPage = ({ user }) => {
           </form>
 
           {/* Transaction Guidelines */}
-          <div className="card" style={{ marginTop: '16px', background: '#2a2a2a' }}>
-            <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#ffc107' }}>
+          <div
+            className="card"
+            style={{ marginTop: "16px", background: "#2a2a2a" }}
+          >
+            <h4
+              style={{
+                fontSize: "16px",
+                fontWeight: "600",
+                marginBottom: "12px",
+                color: "#ffc107",
+              }}
+            >
               Transaction Guidelines
             </h4>
-            <div className="space-y-2" style={{ fontSize: '14px', color: '#ccc' }}>
+            <div
+              className="space-y-2"
+              style={{ fontSize: "14px", color: "#ccc" }}
+            >
               <div className="flex items-center gap-2">
                 <CheckCircle size={14} color="#28a745" />
                 <span>≤ €150: Standard authentication</span>
@@ -275,15 +320,29 @@ const TransactionPage = ({ user }) => {
 
         {/* Transaction History */}
         <div className="card">
-          <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px' }}>
+          <h3
+            style={{
+              fontSize: "18px",
+              fontWeight: "600",
+              marginBottom: "16px",
+            }}
+          >
             Recent Transactions
           </h3>
 
           {transactions.length === 0 ? (
-            <div className="text-center" style={{ color: '#888', padding: '32px 16px' }}>
-              <CreditCard size={48} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
+            <div
+              className="text-center"
+              style={{ color: "#888", padding: "32px 16px" }}
+            >
+              <CreditCard
+                size={48}
+                style={{ margin: "0 auto 16px", opacity: 0.5 }}
+              />
               <p>No transactions yet</p>
-              <p style={{ fontSize: '14px' }}>Create your first transaction above</p>
+              <p style={{ fontSize: "14px" }}>
+                Create your first transaction above
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -315,7 +374,7 @@ const TransactionPage = ({ user }) => {
           <div className="modal-content">
             <div className="modal-header">
               <h3 className="modal-title">Step-up Authentication Required</h3>
-              <button 
+              <button
                 className="modal-close"
                 onClick={() => setStepUpModal(false)}
               >
@@ -323,21 +382,37 @@ const TransactionPage = ({ user }) => {
               </button>
             </div>
 
-            <div style={{ marginBottom: '20px' }}>
-              <div className="card" style={{ background: '#2a2a2a', marginBottom: '16px' }}>
+            <div style={{ marginBottom: "20px" }}>
+              <div
+                className="card"
+                style={{ background: "#2a2a2a", marginBottom: "16px" }}
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <AlertTriangle size={16} color="#ffc107" />
-                  <span style={{ fontWeight: '600' }}>High-Value Transaction</span>
+                  <span style={{ fontWeight: "600" }}>
+                    High-Value Transaction
+                  </span>
                 </div>
-                <p style={{ fontSize: '14px', color: '#ccc' }}>
-                  Amount: <strong>€{Number(currentTransaction?.amount || 0).toFixed(2)}</strong><br />
+                <p style={{ fontSize: "14px", color: "#ccc" }}>
+                  Amount:{" "}
+                  <strong>
+                    €{Number(currentTransaction?.amount || 0).toFixed(2)}
+                  </strong>
+                  <br />
                   Description: {currentTransaction?.description}
                 </p>
               </div>
 
-              <p style={{ fontSize: '14px', color: '#ccc', marginBottom: '16px' }}>
-                This transaction requires additional verification due to PSD3 regulations. 
-                Please enter the OTP sent to your registered device.
+              <p
+                style={{
+                  fontSize: "14px",
+                  color: "#ccc",
+                  marginBottom: "16px",
+                }}
+              >
+                This transaction requires additional verification due to PSD3
+                regulations. Please enter the OTP sent to your registered
+                device.
               </p>
 
               <form onSubmit={handleStepUpVerification}>
@@ -352,19 +427,29 @@ const TransactionPage = ({ user }) => {
                     maxLength="6"
                     required
                   />
-                  <p style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
-                    Check your browser console (F12) or terminal for the demo OTP
+                  <p
+                    style={{
+                      fontSize: "12px",
+                      color: "#888",
+                      marginTop: "4px",
+                    }}
+                  >
+                    Check your browser console (F12) or terminal for the demo
+                    OTP
                   </p>
-                  <div style={{ 
-                    marginTop: '8px', 
-                    padding: '8px 12px', 
-                    background: '#fff3cd', 
-                    border: '1px solid #ffeaa7',
-                    borderRadius: '4px',
-                    color: '#856404',
-                    fontSize: '12px'
-                  }}>
-                    💡 <strong>Tip:</strong> Press F12 → Console tab to see the OTP
+                  <div
+                    style={{
+                      marginTop: "8px",
+                      padding: "8px 12px",
+                      background: "#fff3cd",
+                      border: "1px solid #ffeaa7",
+                      borderRadius: "4px",
+                      color: "#856404",
+                      fontSize: "12px",
+                    }}
+                  >
+                    💡 <strong>Tip:</strong> Press F12 → Console tab to see the
+                    OTP
                   </div>
                 </div>
 
@@ -406,7 +491,11 @@ const TransactionPage = ({ user }) => {
       <ConfirmModal
         open={confirmOpen}
         title="Delete transaction?"
-        body={targetTx ? `This action will permanently remove €${Number(targetTx.amount || 0).toFixed(2)} — ${targetTx.description}. Are you sure?` : ''}
+        body={
+          targetTx
+            ? `This action will permanently remove €${Number(targetTx.amount || 0).toFixed(2)} — ${targetTx.description}. Are you sure?`
+            : ""
+        }
         confirmText="Delete"
         destructive
         onCancel={() => setConfirmOpen(false)}
