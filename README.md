@@ -220,13 +220,11 @@ The system is configured for localhost development. For production:
 ### Manual Testing Scenarios
 
 1. **Passkey Registration**
-
    - Create new account with passkey
    - Verify biometric authentication works
    - Test cross-device functionality
 
 2. **Step-up Authentication**
-
    - Create transaction < €150 (should succeed)
    - Create transaction > €150 (should trigger step-up)
    - Verify OTP authentication
