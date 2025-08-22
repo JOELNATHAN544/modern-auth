@@ -2,8 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
-const { 
-  generateRegistrationOptions, 
+const {
+  generateRegistrationOptions,
   verifyRegistrationResponse,
   generateAuthenticationOptions,
   verifyAuthenticationResponse,
@@ -51,7 +51,7 @@ app.use(
             "http://127.0.0.1:3000",
           ],
     credentials: true,
-  })
+  }),
 );
 
 // Add request logging for debugging
@@ -73,7 +73,7 @@ app.use(limiter);
 app.use(express.json());
 
 // Trust proxy for rate limiting
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 
 // Health check endpoint
 app.get("/health", (req, res) => {
@@ -104,7 +104,7 @@ app.use((req, res, next) => {
 app.post("/api/auth/register/options", async (req, res) => {
   try {
     const { username, email } = req.body;
-    
+
     if (!username || !email) {
       return res.status(400).json({ error: "Username and email are required" });
     }
@@ -132,9 +132,12 @@ app.post("/api/auth/register/options", async (req, res) => {
         residentKey: "required",
         userVerification: "required",
         // Allow both platform and cross-platform authenticators
-        authenticatorAttachment: req.body.authMethod === 'device' ? 'platform' : 
-                                req.body.authMethod === 'pin' ? 'cross-platform' : 
-                                undefined // Let browser choose for 'both'
+        authenticatorAttachment:
+          req.body.authMethod === "device"
+            ? "platform"
+            : req.body.authMethod === "pin"
+              ? "cross-platform"
+              : undefined, // Let browser choose for 'both'
       },
       supportedAlgorithmIDs: [-7, -257],
     });
@@ -190,11 +193,11 @@ app.post("/api/auth/register/verify", async (req, res) => {
       const token = jwt.sign(
         { userId: user.id, email: user.email },
         process.env.JWT_SECRET || "your-secret-key",
-        { expiresIn: "24h" }
+        { expiresIn: "24h" },
       );
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         token,
         user: { id: user.id, username: user.username, email: user.email },
       });
@@ -211,7 +214,7 @@ app.post("/api/auth/register/verify", async (req, res) => {
 app.post("/api/auth/login/options", async (req, res) => {
   try {
     const { email } = req.body;
-    
+
     const user = await User.findByEmail(email);
     if (!user) {
       return res.status(404).json({ error: "User not found" });
@@ -227,9 +230,12 @@ app.post("/api/auth/login/options", async (req, res) => {
       })),
       userVerification: "required",
       // Support multi-modal authentication
-      authenticatorAttachment: req.body.authMethod === 'device' ? 'platform' : 
-                              req.body.authMethod === 'pin' ? 'cross-platform' : 
-                              undefined // Let browser choose for 'both'
+      authenticatorAttachment:
+        req.body.authMethod === "device"
+          ? "platform"
+          : req.body.authMethod === "pin"
+            ? "cross-platform"
+            : undefined, // Let browser choose for 'both'
     });
 
     challenges.set(options.challenge, {
@@ -261,7 +267,7 @@ app.post("/api/auth/login/verify", async (req, res) => {
 
     const user = expectedChallengeData.user;
     const userCredential = await WebAuthnCredential.findByCredentialId(
-      credential.id
+      credential.id,
     );
 
     if (!userCredential || userCredential.user_id !== user.id) {
@@ -284,18 +290,18 @@ app.post("/api/auth/login/verify", async (req, res) => {
       // Update counter
       await WebAuthnCredential.updateCounter(
         userCredential.id,
-        verification.authenticationInfo.newCounter
+        verification.authenticationInfo.newCounter,
       );
       challenges.delete(expectedChallenge);
 
       const token = jwt.sign(
         { userId: user.id, email: user.email },
         process.env.JWT_SECRET || "your-secret-key",
-        { expiresIn: "24h" }
+        { expiresIn: "24h" },
       );
 
-      res.json({ 
-        success: true, 
+      res.json({
+        success: true,
         token,
         user: { id: user.id, username: user.username, email: user.email },
       });
@@ -312,7 +318,7 @@ app.post("/api/auth/login/verify", async (req, res) => {
 app.post("/api/transactions", async (req, res) => {
   try {
     const { amount, description, userId } = req.body;
-    
+
     if (!amount || !description || !userId) {
       return res
         .status(400)
@@ -338,7 +344,10 @@ app.post("/api/transactions", async (req, res) => {
             email: `demo+${String(userId)}@example.com`,
             auth_type: "demo",
           });
-          console.warn("User not found. Created fallback demo user with provided id.", { userId });
+          console.warn(
+            "User not found. Created fallback demo user with provided id.",
+            { userId },
+          );
         } catch (e) {
           return res.status(400).json({ error: "User not found" });
         }
@@ -361,11 +370,11 @@ app.post("/api/transactions", async (req, res) => {
     // PSD3 threshold check (€150)
     if (transaction.requires_stepup) {
       analytics.stepUpAuth.triggered++;
-      
+
       // Generate OTP for step-up authentication
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const otpExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-      
+
       challenges.set(otp, {
         transaction,
         type: "stepup",
@@ -386,7 +395,7 @@ app.post("/api/transactions", async (req, res) => {
     } else {
       // Transaction proceeds without step-up
       await Transaction.updateStatus(transaction.id, "completed");
-      
+
       res.json({
         requiresStepUp: false,
         transaction: transaction,
@@ -404,7 +413,7 @@ app.post("/api/transactions", async (req, res) => {
 app.post("/api/transactions/stepup", async (req, res) => {
   try {
     const { otp, transactionId } = req.body;
-    
+
     const challengeData = challenges.get(otp);
     if (!challengeData || challengeData.type !== "stepup") {
       return res.status(400).json({ error: "Invalid OTP" });
@@ -423,11 +432,11 @@ app.post("/api/transactions/stepup", async (req, res) => {
     const transaction = challengeData.transaction;
     const updatedTransaction = await Transaction.updateStatus(
       transaction.id,
-      "completed"
+      "completed",
     );
     await Transaction.markStepupCompleted(transaction.id);
     analytics.stepUpAuth.completed++;
-    
+
     challenges.delete(otp);
 
     res.json({
@@ -475,7 +484,8 @@ app.patch("/api/transactions/:id", async (req, res) => {
       return res.status(400).json({ error: "No fields to update" });
     }
     const updated = await Transaction.update(id, { amount, description });
-    if (!updated) return res.status(404).json({ error: "Transaction not found" });
+    if (!updated)
+      return res.status(404).json({ error: "Transaction not found" });
     res.json({ success: true, transaction: updated });
   } catch (e) {
     console.error("PATCH /api/transactions/:id error:", e);
@@ -488,7 +498,8 @@ app.delete("/api/transactions/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const deleted = await Transaction.delete(id);
-    if (!deleted) return res.status(404).json({ error: "Transaction not found" });
+    if (!deleted)
+      return res.status(404).json({ error: "Transaction not found" });
     res.json({ success: true });
   } catch (e) {
     console.error("DELETE /api/transactions/:id error:", e);
@@ -499,69 +510,90 @@ app.delete("/api/transactions/:id", async (req, res) => {
 // PART 1B: WebAuthn Passkeys (DB-backed, spec-aligned endpoints)
 
 // Password registration (for MFA with passkey)
-app.post('/api/auth/password/register', async (req, res) => {
+app.post("/api/auth/password/register", async (req, res) => {
   try {
     const { email, username, password } = req.body;
     if (!email || !username || !password) {
-      return res.status(400).json({ error: 'Missing fields' });
+      return res.status(400).json({ error: "Missing fields" });
     }
 
     const existing = await User.findByEmail(email);
     if (existing) {
-      return res.status(400).json({ error: 'User exists' });
+      return res.status(400).json({ error: "User exists" });
     }
 
     const password_hash = await bcrypt.hash(password, 12);
-    const user = await User.create({ username, email, auth_type: 'password' });
-    await query(`UPDATE users SET password_hash=$2 WHERE id=$1`, [user.id, password_hash]);
+    const user = await User.create({ username, email, auth_type: "password" });
+    await query(`UPDATE users SET password_hash=$2 WHERE id=$1`, [
+      user.id,
+      password_hash,
+    ]);
 
     res.json({ success: true });
   } catch (e) {
-    console.error('password/register error:', e);
-    res.status(500).json({ error: 'Failed to register password user' });
+    console.error("password/register error:", e);
+    res.status(500).json({ error: "Failed to register password user" });
   }
 });
 
 // Password login (phase 1 of MFA)
-app.post('/api/auth/password/login', async (req, res) => {
+app.post("/api/auth/password/login", async (req, res) => {
   try {
     const { email, password } = req.body;
     if (!email || !password) {
-      return res.status(400).json({ error: 'Missing fields' });
+      return res.status(400).json({ error: "Missing fields" });
     }
 
     const user = await User.findByEmail(email);
-    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (!user) return res.status(404).json({ error: "User not found" });
 
-    const { rows } = await query(`SELECT password_hash FROM users WHERE id=$1`, [user.id]);
-    const ok = rows[0]?.password_hash && await bcrypt.compare(password, rows[0].password_hash);
-    if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+    const { rows } = await query(
+      `SELECT password_hash FROM users WHERE id=$1`,
+      [user.id],
+    );
+    const ok =
+      rows[0]?.password_hash &&
+      (await bcrypt.compare(password, rows[0].password_hash));
+    if (!ok) return res.status(401).json({ error: "Invalid credentials" });
 
     const pendingId = uuidv4();
-    await query(`
+    await query(
+      `
       INSERT INTO auth_sessions (id, user_id, session_token, auth_type, created_at, expires_at, is_active)
       VALUES ($1,$2,$3,'password',NOW(), NOW() + INTERVAL '5 minutes', true)
-    `, [pendingId, user.id, pendingId]);
+    `,
+      [pendingId, user.id, pendingId],
+    );
 
-    res.json({ success: true, passwordSessionId: pendingId, requirePasskey: true });
+    res.json({
+      success: true,
+      passwordSessionId: pendingId,
+      requirePasskey: true,
+    });
   } catch (e) {
-    console.error('password/login error:', e);
-    res.status(500).json({ error: 'Failed to login' });
+    console.error("password/login error:", e);
+    res.status(500).json({ error: "Failed to login" });
   }
 });
 
 // Begin registration (create options)
-app.post('/api/auth/register/begin', async (req, res) => {
+app.post("/api/auth/register/begin", async (req, res) => {
   try {
     const { username, displayName } = req.body; // username is email
     if (!username || !displayName) {
-      return res.status(400).json({ error: 'username and displayName are required' });
+      return res
+        .status(400)
+        .json({ error: "username and displayName are required" });
     }
 
     // Ensure user exists (create if not)
     let user = await User.findByEmail(username);
     if (!user) {
-      user = await User.create({ username: displayName, email: username, auth_type: 'passkey' });
+      user = await User.create({
+        username: displayName,
+        email: username,
+        auth_type: "passkey",
+      });
     }
 
     const options = await generateRegistrationOptions({
@@ -570,49 +602,54 @@ app.post('/api/auth/register/begin', async (req, res) => {
       userID: user.id,
       userName: user.email,
       userDisplayName: user.username,
-      attestationType: 'none',
+      attestationType: "none",
       authenticatorSelection: {
-        residentKey: 'preferred',
-        userVerification: 'required',
+        residentKey: "preferred",
+        userVerification: "required",
         // Support multi-modal authentication
-        authenticatorAttachment: req.body.authMethod === 'device' ? 'platform' : 
-                                req.body.authMethod === 'pin' ? 'cross-platform' : 
-                                undefined // Let browser choose for 'both'
+        authenticatorAttachment:
+          req.body.authMethod === "device"
+            ? "platform"
+            : req.body.authMethod === "pin"
+              ? "cross-platform"
+              : undefined, // Let browser choose for 'both'
       },
       excludeCredentials: [],
     });
 
     // Store challenge in DB as bytea
-    const challengeBuf = Buffer.from(options.challenge, 'base64url');
+    const challengeBuf = Buffer.from(options.challenge, "base64url");
     await query(
       `INSERT INTO auth_challenges (challenge, user_id, challenge_type, expires_at)
        VALUES ($1,$2,'registration', NOW() + INTERVAL '5 minutes')`,
-      [challengeBuf, user.id]
+      [challengeBuf, user.id],
     );
 
     res.json(options);
   } catch (e) {
-    console.error('register/begin error:', e);
-    res.status(500).json({ error: 'Failed to begin registration' });
+    console.error("register/begin error:", e);
+    res.status(500).json({ error: "Failed to begin registration" });
   }
 });
 
 // Complete registration (verify and persist credential)
-app.post('/api/auth/register/complete', async (req, res) => {
+app.post("/api/auth/register/complete", async (req, res) => {
   try {
     const { credential, expectedChallenge } = req.body;
     if (!credential || !expectedChallenge) {
-      return res.status(400).json({ error: 'Missing credential or expectedChallenge' });
+      return res
+        .status(400)
+        .json({ error: "Missing credential or expectedChallenge" });
     }
 
-    const challengeBuf = Buffer.from(expectedChallenge, 'base64url');
+    const challengeBuf = Buffer.from(expectedChallenge, "base64url");
     const { rows } = await query(
       `SELECT * FROM auth_challenges
        WHERE challenge=$1 AND challenge_type='registration' AND is_used=false AND expires_at>NOW()`,
-      [challengeBuf]
+      [challengeBuf],
     );
     if (!rows.length) {
-      return res.status(400).json({ error: 'Invalid or expired challenge' });
+      return res.status(400).json({ error: "Invalid or expired challenge" });
     }
     const challengeRow = rows[0];
 
@@ -623,22 +660,30 @@ app.post('/api/auth/register/complete', async (req, res) => {
       expectedRPID: rpID,
     });
     if (!verification.verified) {
-      return res.status(400).json({ error: 'Registration verification failed' });
+      return res
+        .status(400)
+        .json({ error: "Registration verification failed" });
     }
 
     // Persist new credential
     // Debug logging: Public key and credential ID (safe to log; DO NOT attempt private key)
     try {
-      const credIdB64 = Buffer.from(verification.registrationInfo.credentialID).toString('base64url');
-      const pubKeyB64 = Buffer.from(verification.registrationInfo.credentialPublicKey).toString('base64url');
-      console.log('🔐 WebAuthn Registration - Storing public key');
+      const credIdB64 = Buffer.from(
+        verification.registrationInfo.credentialID,
+      ).toString("base64url");
+      const pubKeyB64 = Buffer.from(
+        verification.registrationInfo.credentialPublicKey,
+      ).toString("base64url");
+      console.log("🔐 WebAuthn Registration - Storing public key");
       console.log({
         userId: challengeRow.user_id,
         credentialId_base64url: credIdB64,
         publicKey_COSE_base64url: pubKeyB64,
         initialCounter: verification.registrationInfo.counter,
       });
-      console.log('ℹ️ Private key never leaves the authenticator (TPM/Secure Enclave/security key). It is non-exportable and cannot be logged.');
+      console.log(
+        "ℹ️ Private key never leaves the authenticator (TPM/Secure Enclave/security key). It is non-exportable and cannot be logged.",
+      );
     } catch (_) {}
 
     await WebAuthnCredential.create({
@@ -650,20 +695,34 @@ app.post('/api/auth/register/complete', async (req, res) => {
     });
 
     // Mark challenge as used
-    await query(`UPDATE auth_challenges SET is_used=true WHERE id=$1`, [challengeRow.id]);
+    await query(`UPDATE auth_challenges SET is_used=true WHERE id=$1`, [
+      challengeRow.id,
+    ]);
 
     // Return token and user info
     const createdUser = await User.findById(challengeRow.user_id);
-    const token = jwt.sign({ userId: challengeRow.user_id }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '24h' });
-    res.json({ success: true, token, user: createdUser && { id: createdUser.id, username: createdUser.username, email: createdUser.email } });
+    const token = jwt.sign(
+      { userId: challengeRow.user_id },
+      process.env.JWT_SECRET || "your-secret-key",
+      { expiresIn: "24h" },
+    );
+    res.json({
+      success: true,
+      token,
+      user: createdUser && {
+        id: createdUser.id,
+        username: createdUser.username,
+        email: createdUser.email,
+      },
+    });
   } catch (e) {
-    console.error('register/complete error:', e);
-    res.status(500).json({ error: 'Failed to complete registration' });
+    console.error("register/complete error:", e);
+    res.status(500).json({ error: "Failed to complete registration" });
   }
 });
 
 // Begin login (create options)
-app.post('/api/auth/login/begin', async (req, res) => {
+app.post("/api/auth/login/begin", async (req, res) => {
   try {
     const { username } = req.body; // optional email
 
@@ -671,7 +730,7 @@ app.post('/api/auth/login/begin', async (req, res) => {
       // Username provided: return options scoped to that user's credentials
       const user = await User.findByEmail(username);
       if (!user) {
-        return res.status(404).json({ error: 'User not found' });
+        return res.status(404).json({ error: "User not found" });
       }
 
       const creds = await WebAuthnCredential.findByUserId(user.id);
@@ -679,75 +738,83 @@ app.post('/api/auth/login/begin', async (req, res) => {
         rpID,
         allowCredentials: creds.map((c) => ({
           id: c.credential_id,
-          type: 'public-key',
+          type: "public-key",
           transports: c.transports || [],
         })),
-        userVerification: 'required',
+        userVerification: "required",
         // Support multi-modal authentication
-        authenticatorAttachment: req.body.authMethod === 'device' ? 'platform' : 
-                                req.body.authMethod === 'pin' ? 'cross-platform' : 
-                                undefined // Let browser choose for 'both'
+        authenticatorAttachment:
+          req.body.authMethod === "device"
+            ? "platform"
+            : req.body.authMethod === "pin"
+              ? "cross-platform"
+              : undefined, // Let browser choose for 'both'
       });
 
-      const challengeBuf = Buffer.from(options.challenge, 'base64url');
+      const challengeBuf = Buffer.from(options.challenge, "base64url");
       await query(
         `INSERT INTO auth_challenges (challenge, user_id, challenge_type, expires_at)
          VALUES ($1,$2,'authentication', NOW() + INTERVAL '5 minutes')`,
-        [challengeBuf, user.id]
+        [challengeBuf, user.id],
       );
 
-      return res.json({ ...options, mode: 'username' });
+      return res.json({ ...options, mode: "username" });
     }
 
     // No username: usernameless/conditional UI. Empty allowCredentials to let browser discover local creds
     const options = await generateAuthenticationOptions({
       rpID,
       allowCredentials: [],
-      userVerification: 'required',
+      userVerification: "required",
       // Support multi-modal authentication
-      authenticatorAttachment: req.body.authMethod === 'device' ? 'platform' : 
-                              req.body.authMethod === 'pin' ? 'cross-platform' : 
-                              undefined // Let browser choose for 'both'
+      authenticatorAttachment:
+        req.body.authMethod === "device"
+          ? "platform"
+          : req.body.authMethod === "pin"
+            ? "cross-platform"
+            : undefined, // Let browser choose for 'both'
     });
 
-    const challengeBuf = Buffer.from(options.challenge, 'base64url');
+    const challengeBuf = Buffer.from(options.challenge, "base64url");
     await query(
       `INSERT INTO auth_challenges (challenge, user_id, challenge_type, expires_at)
        VALUES ($1,NULL,'authentication', NOW() + INTERVAL '5 minutes')`,
-      [challengeBuf]
+      [challengeBuf],
     );
 
-    return res.json({ ...options, mode: 'usernameless' });
+    return res.json({ ...options, mode: "usernameless" });
   } catch (e) {
-    console.error('login/begin error:', e);
-    res.status(500).json({ error: 'Failed to begin login' });
+    console.error("login/begin error:", e);
+    res.status(500).json({ error: "Failed to begin login" });
   }
 });
 
 // Complete login (verify assertion)
-app.post('/api/auth/login/complete', async (req, res) => {
+app.post("/api/auth/login/complete", async (req, res) => {
   try {
     const { credential, expectedChallenge } = req.body;
     if (!credential || !expectedChallenge) {
-      return res.status(400).json({ error: 'Missing credential or expectedChallenge' });
+      return res
+        .status(400)
+        .json({ error: "Missing credential or expectedChallenge" });
     }
 
-    const challengeBuf = Buffer.from(expectedChallenge, 'base64url');
+    const challengeBuf = Buffer.from(expectedChallenge, "base64url");
     const { rows } = await query(
       `SELECT * FROM auth_challenges
        WHERE challenge=$1 AND challenge_type='authentication' AND is_used=false AND expires_at>NOW()`,
-      [challengeBuf]
+      [challengeBuf],
     );
     if (!rows.length) {
-      return res.status(400).json({ error: 'Invalid or expired challenge' });
+      return res.status(400).json({ error: "Invalid or expired challenge" });
     }
     const challengeRow = rows[0];
 
     // Look up stored authenticator by credentialId
-    const credentialIdBuf = Buffer.from(credential.id, 'base64url');
+    const credentialIdBuf = Buffer.from(credential.id, "base64url");
     const stored = await WebAuthnCredential.findByCredentialId(credentialIdBuf);
     if (!stored) {
-      return res.status(404).json({ error: 'Credential not found' });
+      return res.status(404).json({ error: "Credential not found" });
     }
 
     const verification = await verifyAuthenticationResponse({
@@ -762,34 +829,59 @@ app.post('/api/auth/login/complete', async (req, res) => {
       },
     });
     if (!verification.verified) {
-      return res.status(400).json({ error: 'Authentication verification failed' });
+      return res
+        .status(400)
+        .json({ error: "Authentication verification failed" });
     }
 
     // Update counter and last used
     // Debug logging: signature and counters (no private key access)
     try {
-      const credIdB64 = Buffer.from(credential.id, 'base64url').toString('base64url');
-      const sigB64 = credential?.response?.signature || '(not provided)';
-      console.log('🔑 WebAuthn Authentication - Verifying signature with stored public key');
+      const credIdB64 = Buffer.from(credential.id, "base64url").toString(
+        "base64url",
+      );
+      const sigB64 = credential?.response?.signature || "(not provided)";
+      console.log(
+        "🔑 WebAuthn Authentication - Verifying signature with stored public key",
+      );
       console.log({
         userId: stored.user_id,
         credentialId_base64url: credIdB64,
         newCounter: verification.authenticationInfo.newCounter,
         signature_base64url: sigB64,
       });
-      console.log('ℹ️ Signature was created inside the authenticator using the non-exportable private key.');
+      console.log(
+        "ℹ️ Signature was created inside the authenticator using the non-exportable private key.",
+      );
     } catch (_) {}
 
-    await WebAuthnCredential.updateCounter(stored.credential_id, verification.authenticationInfo.newCounter);
+    await WebAuthnCredential.updateCounter(
+      stored.credential_id,
+      verification.authenticationInfo.newCounter,
+    );
     await User.updateLastLogin(stored.user_id);
-    await query(`UPDATE auth_challenges SET is_used=true WHERE id=$1`, [challengeRow.id]);
+    await query(`UPDATE auth_challenges SET is_used=true WHERE id=$1`, [
+      challengeRow.id,
+    ]);
 
     const loggedInUser = await User.findById(stored.user_id);
-    const token = jwt.sign({ userId: stored.user_id }, process.env.JWT_SECRET || 'your-secret-key', { expiresIn: '24h' });
-    res.json({ success: true, token, user: loggedInUser && { id: loggedInUser.id, username: loggedInUser.username, email: loggedInUser.email } });
+    const token = jwt.sign(
+      { userId: stored.user_id },
+      process.env.JWT_SECRET || "your-secret-key",
+      { expiresIn: "24h" },
+    );
+    res.json({
+      success: true,
+      token,
+      user: loggedInUser && {
+        id: loggedInUser.id,
+        username: loggedInUser.username,
+        email: loggedInUser.email,
+      },
+    });
   } catch (e) {
-    console.error('login/complete error:', e);
-    res.status(500).json({ error: 'Failed to complete login' });
+    console.error("login/complete error:", e);
+    res.status(500).json({ error: "Failed to complete login" });
   }
 });
 
@@ -808,35 +900,35 @@ app.get("/api/analytics/conversion", async (req, res) => {
         ? (analytics.signupCompleted.passkey /
             analytics.signupStarted.passkey) *
           100
-    : 0;
-  
-  const conversionDelta = passkeyConversion - passwordConversion;
+        : 0;
+
+    const conversionDelta = passkeyConversion - passwordConversion;
 
     // Get transaction stats from database
     const transactionStats = await Transaction.getStats();
 
-  res.json({
-    password: {
-      started: analytics.signupStarted.password,
-      completed: analytics.signupCompleted.password,
+    res.json({
+      password: {
+        started: analytics.signupStarted.password,
+        completed: analytics.signupCompleted.password,
         conversionRate: passwordConversion.toFixed(2) + "%",
-    },
-    passkey: {
-      started: analytics.signupStarted.passkey,
-      completed: analytics.signupCompleted.passkey,
+      },
+      passkey: {
+        started: analytics.signupStarted.passkey,
+        completed: analytics.signupCompleted.passkey,
         conversionRate: passkeyConversion.toFixed(2) + "%",
-    },
-    delta: {
+      },
+      delta: {
         percentage: conversionDelta.toFixed(2) + "%",
         improvement:
           conversionDelta > 0
             ? "Passkeys improve conversion"
             : "Passkeys reduce conversion",
-    },
-    stepUpAuth: analytics.stepUpAuth,
+      },
+      stepUpAuth: analytics.stepUpAuth,
       totalTransactions: transactionStats.total_transactions || 0,
       transactionStats: transactionStats,
-  });
+    });
   } catch (error) {
     console.error("Analytics error:", error);
     res.status(500).json({ error: "Failed to fetch analytics" });
@@ -869,7 +961,7 @@ const startServer = async () => {
     console.log("✅ Database connected successfully");
 
     // Start the server
-app.listen(PORT, () => {
+    app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`🔐 WebAuthn RP ID: ${rpID}`);
       console.log(`🌐 Origin: ${origin}`);
