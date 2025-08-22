@@ -11,7 +11,7 @@ async function setupDatabase() {
     const isConnected = await testConnection();
     if (!isConnected) {
       console.error(
-        "❌ Database connection failed. Please check your configuration."
+        "❌ Database connection failed. Please check your configuration.",
       );
       process.exit(1);
     }
@@ -88,7 +88,7 @@ async function insertInitialData() {
       systemConfig.event_type,
       systemConfig.auth_type,
       JSON.stringify(systemConfig.metadata),
-    ]
+    ],
   );
 }
 
@@ -110,12 +110,12 @@ async function verifySetup() {
     try {
       const result = await query(`SELECT COUNT(*) FROM ${table}`);
       console.log(
-        `   ✅ Table '${table}' exists with ${result.rows[0].count} rows`
+        `   ✅ Table '${table}' exists with ${result.rows[0].count} rows`,
       );
     } catch (error) {
       console.error(
         `   ❌ Table '${table}' verification failed:`,
-        error.message
+        error.message,
       );
     }
   }
