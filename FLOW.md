@@ -5,7 +5,7 @@
 This assignment demonstrates modern authentication technologies through a comprehensive banking/startup application. You'll build and test three main components:
 
 1. **WebAuthn/Passkeys** - Modern passwordless authentication
-2. **Step-up Authentication** - Banking security for high-value transactions  
+2. **Step-up Authentication** - Banking security for high-value transactions
 3. **Conversion Analytics** - Measuring authentication success rates
 
 ---
@@ -13,13 +13,16 @@ This assignment demonstrates modern authentication technologies through a compre
 ## 📋 **What You're Building**
 
 ### **The Application**
+
 A complete banking/startup platform with:
+
 - **User Authentication**: Modern passkey-based login system
 - **Transaction Processing**: Banking-style transactions with security
 - **Analytics Dashboard**: Real-time conversion tracking
 - **Security Features**: PSD3 compliant banking regulations
 
 ### **The Technology Stack**
+
 - **Frontend**: React.js with modern UI
 - **Backend**: Node.js with Express
 - **Authentication**: WebAuthn/Passkeys (FIDO2 standard)
@@ -50,6 +53,7 @@ npm run dev
 ### **Step 2: Test Part 1 - WebAuthn/Passkeys**
 
 #### **What You're Testing:**
+
 - Modern passwordless authentication
 - Biometric authentication (fingerprint, face ID)
 - Cross-device credential support
@@ -80,6 +84,7 @@ npm run dev
    - All features work normally in demo mode
 
 #### **What This Demonstrates:**
+
 - ✅ WebAuthn registration and authentication flow
 - ✅ Modern security standards (FIDO2)
 - ✅ User experience improvements over passwords
@@ -90,6 +95,7 @@ npm run dev
 ### **Step 3: Test Part 2 - Step-up Authentication for Banks**
 
 #### **What You're Testing:**
+
 - PSD3 compliant banking security
 - Risk-based authentication
 - OTP verification for high-value transactions
@@ -126,6 +132,7 @@ npm run dev
    - Note the different status indicators
 
 #### **What This Demonstrates:**
+
 - ✅ PSD3 compliance for EU banking regulations
 - ✅ Automatic risk assessment (€150 threshold)
 - ✅ Multi-factor authentication (OTP)
@@ -137,6 +144,7 @@ npm run dev
 ### **Step 4: Test Part 3 - Conversion Analytics**
 
 #### **What You're Testing:**
+
 - Real-time conversion tracking
 - Password vs. passkey performance comparison
 - Analytics dashboard with visualizations
@@ -169,6 +177,7 @@ npm run dev
    - Security metrics
 
 #### **What This Demonstrates:**
+
 - ✅ Real-time data collection and analysis
 - ✅ Conversion rate calculations
 - ✅ Performance comparison methodologies
@@ -182,6 +191,7 @@ npm run dev
 ### **Part 1: WebAuthn Implementation**
 
 #### **Frontend (React)**
+
 ```javascript
 // Key Components:
 - AuthPage.js: Registration and login forms
@@ -191,15 +201,17 @@ npm run dev
 ```
 
 #### **Backend (Node.js)**
+
 ```javascript
 // Key Endpoints:
 - POST /api/auth/register/options: Generate registration options
 - POST /api/auth/register/verify: Verify registration
-- POST /api/auth/login/options: Generate authentication options  
+- POST /api/auth/login/options: Generate authentication options
 - POST /api/auth/login/verify: Verify authentication
 ```
 
 #### **Security Features**
+
 - Phishing-resistant authentication
 - Cross-device credential support
 - Biometric authentication support
@@ -208,6 +220,7 @@ npm run dev
 ### **Part 2: Step-up Authentication**
 
 #### **Transaction Processing**
+
 ```javascript
 // Key Logic:
 - Amount > €150 → Trigger step-up authentication
@@ -217,6 +230,7 @@ npm run dev
 ```
 
 #### **PSD3 Compliance**
+
 - Automatic risk assessment
 - Multi-factor authentication
 - Audit trail maintenance
@@ -225,6 +239,7 @@ npm run dev
 ### **Part 3: Analytics System**
 
 #### **Data Collection**
+
 ```javascript
 // Metrics Tracked:
 - SIGNUP_STARTED: When users begin registration
@@ -234,6 +249,7 @@ npm run dev
 ```
 
 #### **Real-time Dashboard**
+
 - Live data updates
 - Visual charts and graphs
 - Performance comparisons
@@ -244,6 +260,7 @@ npm run dev
 ## 📊 **Assignment Success Criteria**
 
 ### **Part 1: WebAuthn/Passkeys** ✅
+
 - [x] Complete registration flow
 - [x] Complete authentication flow
 - [x] Cross-device compatibility
@@ -251,6 +268,7 @@ npm run dev
 - [x] Modern UI/UX
 
 ### **Part 2: Step-up Authentication** ✅
+
 - [x] PSD3 compliant threshold (€150)
 - [x] OTP generation and verification
 - [x] Transaction processing
@@ -258,6 +276,7 @@ npm run dev
 - [x] Real-time monitoring
 
 ### **Part 3: Conversion Analytics** ✅
+
 - [x] Real-time data collection
 - [x] Conversion rate calculations
 - [x] Performance comparisons
@@ -269,12 +288,14 @@ npm run dev
 ## 🎮 **Demo Mode for Testing**
 
 ### **When to Use Demo Mode**
+
 - WebAuthn not supported on your device
 - Browser compatibility issues
 - Testing without biometric hardware
 - Quick demonstration purposes
 
 ### **How Demo Mode Works**
+
 - Simulates successful WebAuthn authentication
 - All features work normally
 - Real data collection and analytics
@@ -282,6 +303,7 @@ npm run dev
 - Full analytics dashboard
 
 ### **Demo Mode Features**
+
 - ✅ Simulated passkey registration
 - ✅ Simulated passkey login
 - ✅ Full transaction processing
@@ -296,21 +318,25 @@ npm run dev
 ### **Common Issues**
 
 #### **WebAuthn Not Working**
+
 - **Solution**: Use demo mode for testing
 - **Alternative**: Try different browser (Chrome recommended)
 - **Check**: Device biometric support
 
 #### **OTP Not Visible**
+
 - **Check**: Browser console (F12 → Console tab)
 - **Check**: Terminal where you ran `npm run dev`
 - **Look for**: `🔐 Demo OTP: 123456`
 
 #### **Transaction Fails**
+
 - **Verify**: Amount is over €150 for step-up
 - **Check**: OTP is entered correctly
 - **Ensure**: OTP hasn't expired (5 minutes)
 
 #### **Analytics Not Updating**
+
 - **Refresh**: Analytics page
 - **Generate**: More test data
 - **Check**: Real-time updates (30-second intervals)
@@ -320,6 +346,7 @@ npm run dev
 ## 📈 **Learning Outcomes**
 
 ### **Technical Skills**
+
 - WebAuthn/FIDO2 implementation
 - Modern authentication standards
 - Banking security regulations
@@ -327,6 +354,7 @@ npm run dev
 - Full-stack development
 
 ### **Business Understanding**
+
 - User experience optimization
 - Security vs. convenience trade-offs
 - Conversion rate optimization
@@ -334,6 +362,7 @@ npm run dev
 - Data-driven decision making
 
 ### **Industry Knowledge**
+
 - Modern authentication trends
 - Banking security requirements
 - Startup growth metrics
@@ -345,6 +374,7 @@ npm run dev
 ## 🏆 **Assignment Completion Checklist**
 
 ### **Before Submission**
+
 - [ ] All three parts tested and working
 - [ ] Demo mode tested for compatibility
 - [ ] Analytics data generated and reviewed
@@ -353,6 +383,7 @@ npm run dev
 - [ ] Documentation reviewed
 
 ### **Demonstration Points**
+
 - [ ] WebAuthn registration and login
 - [ ] Step-up authentication for high-value transactions
 - [ ] Real-time analytics dashboard
@@ -365,24 +396,28 @@ npm run dev
 ## 🎯 **What This Assignment Teaches**
 
 ### **Modern Authentication**
+
 - Passwordless authentication methods
 - Biometric security integration
 - Cross-platform compatibility
 - Security best practices
 
 ### **Banking Security**
+
 - Regulatory compliance (PSD3)
 - Risk-based authentication
 - Multi-factor security
 - Transaction monitoring
 
 ### **Data Analytics**
+
 - Real-time data collection
 - Performance measurement
 - User behavior analysis
 - Business intelligence
 
 ### **Full-Stack Development**
+
 - React frontend development
 - Node.js backend development
 - API design and implementation
