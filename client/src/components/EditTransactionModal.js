@@ -1,24 +1,24 @@
-import React, { useEffect, useRef, useState } from 'react';
-import ConfirmModal from './ConfirmModal';
+import React, { useEffect, useRef, useState } from "react";
+import ConfirmModal from "./ConfirmModal";
 
 const EditTransactionModal = ({ open, transaction, onSave, onCancel }) => {
   const dialogRef = useRef(null);
   const lastFocused = useRef(null);
-  const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
+  const [amount, setAmount] = useState("");
+  const [description, setDescription] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setAmount(String(transaction?.amount ?? ''));
-      setDescription(transaction?.description ?? '');
+      setAmount(String(transaction?.amount ?? ""));
+      setDescription(transaction?.description ?? "");
       lastFocused.current = document.activeElement;
       setTimeout(() => dialogRef.current?.focus(), 0);
       const handleKey = (e) => {
-        if (e.key === 'Escape') onCancel?.();
+        if (e.key === "Escape") onCancel?.();
       };
-      window.addEventListener('keydown', handleKey);
-      return () => window.removeEventListener('keydown', handleKey);
+      window.addEventListener("keydown", handleKey);
+      return () => window.removeEventListener("keydown", handleKey);
     } else if (lastFocused.current) {
       lastFocused.current.focus?.();
     }
@@ -27,11 +27,25 @@ const EditTransactionModal = ({ open, transaction, onSave, onCancel }) => {
   if (!open) return null;
 
   return (
-    <div className="modal" role="dialog" aria-modal="true" aria-labelledby="edit-title">
-      <div className="modal-content" ref={dialogRef} tabIndex={-1} style={{ outline: 'none' }}>
+    <div
+      className="modal"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="edit-title"
+    >
+      <div
+        className="modal-content"
+        ref={dialogRef}
+        tabIndex={-1}
+        style={{ outline: "none" }}
+      >
         <div className="modal-header">
-          <h3 id="edit-title" className="modal-title">Edit Transaction</h3>
-          <button className="modal-close" onClick={onCancel} aria-label="Close">×</button>
+          <h3 id="edit-title" className="modal-title">
+            Edit Transaction
+          </h3>
+          <button className="modal-close" onClick={onCancel} aria-label="Close">
+            ×
+          </button>
         </div>
 
         <div>
@@ -59,7 +73,9 @@ const EditTransactionModal = ({ open, transaction, onSave, onCancel }) => {
         </div>
 
         <div className="flex gap-3">
-          <button className="btn btn-secondary" onClick={onCancel}>Cancel</button>
+          <button className="btn btn-secondary" onClick={onCancel}>
+            Cancel
+          </button>
           <button
             className="btn btn-success"
             onClick={() => setShowConfirm(true)}
@@ -84,6 +100,3 @@ const EditTransactionModal = ({ open, transaction, onSave, onCancel }) => {
 };
 
 export default EditTransactionModal;
-
-
-
