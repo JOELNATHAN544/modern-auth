@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import React, { useEffect, useRef, useState } from "react";
+import { MoreVertical, Pencil, Trash2 } from "lucide-react";
 
 const TransactionCard = ({ transaction, onEdit, onDelete }) => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -8,29 +8,35 @@ const TransactionCard = ({ transaction, onEdit, onDelete }) => {
   const buttonRef = useRef(null);
   const itemRefs = [useRef(null), useRef(null)];
   const [activeIndex, setActiveIndex] = useState(0);
-  const isMobile = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: none)').matches;
+  const isMobile =
+    typeof window !== "undefined" &&
+    window.matchMedia &&
+    window.matchMedia("(hover: none)").matches;
 
   useEffect(() => {
     const onDoc = (e) => {
       if (!menuRef.current) return;
-      if (!menuRef.current.contains(e.target) && !buttonRef.current?.contains(e.target)) {
+      if (
+        !menuRef.current.contains(e.target) &&
+        !buttonRef.current?.contains(e.target)
+      ) {
         setMenuOpen(false);
       }
     };
-    document.addEventListener('mousedown', onDoc);
+    document.addEventListener("mousedown", onDoc);
     const onKey = (e) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         setMenuOpen(false);
         buttonRef.current?.focus();
       }
       if (menuOpen) {
-        if (e.key === 'ArrowDown') {
+        if (e.key === "ArrowDown") {
           e.preventDefault();
           const next = (activeIndex + 1) % itemRefs.length;
           setActiveIndex(next);
           itemRefs[next].current?.focus();
         }
-        if (e.key === 'ArrowUp') {
+        if (e.key === "ArrowUp") {
           e.preventDefault();
           const prev = (activeIndex - 1 + itemRefs.length) % itemRefs.length;
           setActiveIndex(prev);
@@ -38,8 +44,8 @@ const TransactionCard = ({ transaction, onEdit, onDelete }) => {
         }
       }
     };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('mousedown', onDoc);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
   const amt = Number(transaction.amount) || 0;
@@ -48,22 +54,27 @@ const TransactionCard = ({ transaction, onEdit, onDelete }) => {
   return (
     <div
       className="card"
-      style={{ background: '#2a2a2a', padding: '16px', border: '1px solid #444', position: 'relative' }}
+      style={{
+        background: "#2a2a2a",
+        padding: "16px",
+        border: "1px solid #444",
+        position: "relative",
+      }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <div className="flex items-center justify-between mb-2">
-        <span style={{ fontWeight: '600' }}>€{amt.toFixed(2)}</span>
+        <span style={{ fontWeight: "600" }}>€{amt.toFixed(2)}</span>
         {transaction.statusPill}
       </div>
 
-      <p style={{ fontSize: '14px', color: '#ccc', marginBottom: '8px' }}>
+      <p style={{ fontSize: "14px", color: "#ccc", marginBottom: "8px" }}>
         {transaction.description}
       </p>
 
       <div className="flex items-center justify-between">
-        <span style={{ fontSize: '12px', color: '#888' }}>
-          {createdAt ? new Date(createdAt).toLocaleString() : ''}
+        <span style={{ fontSize: "12px", color: "#888" }}>
+          {createdAt ? new Date(createdAt).toLocaleString() : ""}
         </span>
       </div>
 
@@ -78,13 +89,13 @@ const TransactionCard = ({ transaction, onEdit, onDelete }) => {
         onClick={() => setMenuOpen(!menuOpen)}
         className="btn btn-secondary"
         style={{
-          position: 'absolute',
-          right: '10px',
-          bottom: '10px',
-          width: '32px',
-          height: '32px',
+          position: "absolute",
+          right: "10px",
+          bottom: "10px",
+          width: "32px",
+          height: "32px",
           padding: 0,
-          borderRadius: '50%',
+          borderRadius: "50%",
           opacity: isMobile || menuOpen || hovered ? 1 : 0,
         }}
       >
@@ -98,19 +109,19 @@ const TransactionCard = ({ transaction, onEdit, onDelete }) => {
           role="menu"
           className="card"
           style={{
-            position: 'absolute',
-            right: '10px',
-            bottom: '50px',
-            minWidth: '160px',
-            background: '#1f1f1f',
-            border: '1px solid #333',
+            position: "absolute",
+            right: "10px",
+            bottom: "50px",
+            minWidth: "160px",
+            background: "#1f1f1f",
+            border: "1px solid #333",
             zIndex: 20,
           }}
         >
           <button
             role="menuitem"
             className="btn btn-secondary"
-            style={{ width: '100%', justifyContent: 'flex-start' }}
+            style={{ width: "100%", justifyContent: "flex-start" }}
             ref={itemRefs[0]}
             onClick={() => {
               setMenuOpen(false);
@@ -122,7 +133,11 @@ const TransactionCard = ({ transaction, onEdit, onDelete }) => {
           <button
             role="menuitem"
             className="btn btn-danger"
-            style={{ width: '100%', justifyContent: 'flex-start', marginTop: '6px' }}
+            style={{
+              width: "100%",
+              justifyContent: "flex-start",
+              marginTop: "6px",
+            }}
             ref={itemRefs[1]}
             onClick={() => {
               setMenuOpen(false);
@@ -138,5 +153,3 @@ const TransactionCard = ({ transaction, onEdit, onDelete }) => {
 };
 
 export default TransactionCard;
-
-
