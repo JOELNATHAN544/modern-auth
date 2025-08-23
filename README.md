@@ -280,4 +280,4 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ---
 
-**Note**: This is a demonstration project for educational purposes. For production use, implement proper security measures, error handling, and follow industry best practices.
+***Note***: This is a demonstration project for educational purposes. For production use, implement proper security measures, error handling, and follow industry best practices.
