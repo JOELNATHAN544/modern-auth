@@ -99,7 +99,18 @@ class User {
     return result.rows;
   }
 
- 
+  // Deactivate user
+  static async deactivate(id) {
+    const sql = `
+      UPDATE users 
+      SET is_active = false, updated_at = CURRENT_TIMESTAMP
+      WHERE id = $1
+      RETURNING *
+    `;
+    const result = await query(sql, [id]);
+    return result.rows[0];
+  }
+
   // Update user
   static async update(id, updateData) {
     const { username, email, auth_type } = updateData;
