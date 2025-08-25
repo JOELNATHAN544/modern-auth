@@ -3,7 +3,7 @@ const path = require("path");
 const { query, testConnection } = require("../server/config/database");
 
 async function setupDatabase() {
-  console.log("🗄️  Setting up Modern Authentication Database...\n");
+  console.log("🗄️  Setting up the Modern Authentication Database...\n");
 
   try {
     // Test database connection
