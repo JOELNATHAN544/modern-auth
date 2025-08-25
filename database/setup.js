@@ -46,7 +46,7 @@ async function setupDatabase() {
     // Insert initial data
     console.log("3. Inserting initial data...");
     await insertInitialData();
-    console.log("✅ Initial data inserted successfully\n");
+    console.log("✅ Initial data inserted successfully...\n");
 
     // Verify setup
     console.log("4. Verifying database setup...");
