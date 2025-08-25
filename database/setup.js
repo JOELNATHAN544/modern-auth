@@ -41,7 +41,7 @@ async function setupDatabase() {
         }
       }
     }
-    console.log("✅ Database schema created successfully\n");
+    console.log("✅ Database schema created successfully...\n");
 
     // Insert initial data
     console.log("3. Inserting initial data...");
