@@ -51,7 +51,7 @@ const MultiModalTest = () => {
 
     addLog(
       "info",
-      "Starting comprehensive multi-modal authentication tests...",
+      "Starting comprehensive multi-modal authentication tests..."
     );
 
     try {
@@ -105,8 +105,9 @@ const MultiModalTest = () => {
     for (const method of methods) {
       try {
         addLog("info", `Testing method: ${method}`);
-        const testResult =
-          await webauthnService.testAuthenticationMethod(method);
+        const testResult = await webauthnService.testAuthenticationMethod(
+          method
+        );
         results[method] = testResult;
         addLog("success", `Method ${method} test completed`, testResult);
       } catch (error) {
@@ -301,7 +302,7 @@ const MultiModalTest = () => {
                       color: getStatusColor(
                         testResults.deviceCapabilities.webauthnSupported
                           ? "passed"
-                          : "failed",
+                          : "failed"
                       ),
                     }}
                   >
@@ -317,7 +318,7 @@ const MultiModalTest = () => {
                       color: getStatusColor(
                         testResults.deviceCapabilities.platformAuthenticator
                           ? "passed"
-                          : "failed",
+                          : "failed"
                       ),
                     }}
                   >
@@ -333,7 +334,7 @@ const MultiModalTest = () => {
                       color: getStatusColor(
                         testResults.deviceCapabilities.secureContext
                           ? "passed"
-                          : "failed",
+                          : "failed"
                       ),
                     }}
                   >
@@ -368,14 +369,14 @@ const MultiModalTest = () => {
                       <span
                         style={{
                           color: getStatusColor(
-                            result.available ? "passed" : "failed",
+                            result.available ? "passed" : "failed"
                           ),
                         }}
                       >
                         {result.available ? "✅" : "❌"}
                       </span>
                     </div>
-                  ),
+                  )
                 )}
               </div>
             )}
@@ -398,14 +399,14 @@ const MultiModalTest = () => {
                       <span
                         style={{
                           color: getStatusColor(
-                            result.hasFallback ? "passed" : "failed",
+                            result.hasFallback ? "passed" : "failed"
                           ),
                         }}
                       >
                         {result.fallbackMethod || "none"}
                       </span>
                     </div>
-                  ),
+                  )
                 )}
               </div>
             )}
@@ -427,7 +428,7 @@ const MultiModalTest = () => {
                         testResults.crossPlatformCompatibility
                           .platformAuthenticator
                           ? "passed"
-                          : "failed",
+                          : "failed"
                       ),
                     }}
                   >
@@ -445,7 +446,7 @@ const MultiModalTest = () => {
                         testResults.crossPlatformCompatibility
                           .crossPlatformSupported
                           ? "passed"
-                          : "failed",
+                          : "failed"
                       ),
                     }}
                   >
@@ -460,7 +461,7 @@ const MultiModalTest = () => {
                         testResults.crossPlatformCompatibility
                           .mixedModeSupported
                           ? "passed"
-                          : "failed",
+                          : "failed"
                       ),
                     }}
                   >
@@ -490,10 +491,10 @@ const MultiModalTest = () => {
                     log.level === "error"
                       ? "#2d1b1b"
                       : log.level === "warning"
-                        ? "#2d2b1b"
-                        : log.level === "success"
-                          ? "#1b2d1b"
-                          : "#1b1b2d",
+                      ? "#2d2b1b"
+                      : log.level === "success"
+                      ? "#1b2d1b"
+                      : "#1b1b2d",
                 }}
               >
                 <span style={{ color: "#888", fontSize: "12px" }}>
@@ -505,10 +506,10 @@ const MultiModalTest = () => {
                       log.level === "error"
                         ? "#dc3545"
                         : log.level === "warning"
-                          ? "#ffc107"
-                          : log.level === "success"
-                            ? "#28a745"
-                            : "#007bff",
+                        ? "#ffc107"
+                        : log.level === "success"
+                        ? "#28a745"
+                        : "#007bff",
                   }}
                 >
                   [{log.level.toUpperCase()}]
