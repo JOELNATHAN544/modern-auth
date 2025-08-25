@@ -51,7 +51,7 @@ app.use(
             "http://127.0.0.1:3000",
           ],
     credentials: true,
-  }),
+  })
 );
 
 // Add request logging for debugging
@@ -136,8 +136,8 @@ app.post("/api/auth/register/options", async (req, res) => {
           req.body.authMethod === "device"
             ? "platform"
             : req.body.authMethod === "pin"
-              ? "cross-platform"
-              : undefined, // Let browser choose for 'both'
+            ? "cross-platform"
+            : undefined, // Let browser choose for 'both'
       },
       supportedAlgorithmIDs: [-7, -257],
     });
@@ -193,7 +193,7 @@ app.post("/api/auth/register/verify", async (req, res) => {
       const token = jwt.sign(
         { userId: user.id, email: user.email },
         process.env.JWT_SECRET || "your-secret-key",
-        { expiresIn: "24h" },
+        { expiresIn: "24h" }
       );
 
       res.json({
@@ -234,8 +234,8 @@ app.post("/api/auth/login/options", async (req, res) => {
         req.body.authMethod === "device"
           ? "platform"
           : req.body.authMethod === "pin"
-            ? "cross-platform"
-            : undefined, // Let browser choose for 'both'
+          ? "cross-platform"
+          : undefined, // Let browser choose for 'both'
     });
 
     challenges.set(options.challenge, {
@@ -267,7 +267,7 @@ app.post("/api/auth/login/verify", async (req, res) => {
 
     const user = expectedChallengeData.user;
     const userCredential = await WebAuthnCredential.findByCredentialId(
-      credential.id,
+      credential.id
     );
 
     if (!userCredential || userCredential.user_id !== user.id) {
@@ -290,14 +290,14 @@ app.post("/api/auth/login/verify", async (req, res) => {
       // Update counter
       await WebAuthnCredential.updateCounter(
         userCredential.id,
-        verification.authenticationInfo.newCounter,
+        verification.authenticationInfo.newCounter
       );
       challenges.delete(expectedChallenge);
 
       const token = jwt.sign(
         { userId: user.id, email: user.email },
         process.env.JWT_SECRET || "your-secret-key",
-        { expiresIn: "24h" },
+        { expiresIn: "24h" }
       );
 
       res.json({
@@ -346,7 +346,7 @@ app.post("/api/transactions", async (req, res) => {
           });
           console.warn(
             "User not found. Created fallback demo user with provided id.",
-            { userId },
+            { userId }
           );
         } catch (e) {
           return res.status(400).json({ error: "User not found" });
@@ -432,7 +432,7 @@ app.post("/api/transactions/stepup", async (req, res) => {
     const transaction = challengeData.transaction;
     const updatedTransaction = await Transaction.updateStatus(
       transaction.id,
-      "completed",
+      "completed"
     );
     await Transaction.markStepupCompleted(transaction.id);
     analytics.stepUpAuth.completed++;
@@ -549,7 +549,7 @@ app.post("/api/auth/password/login", async (req, res) => {
 
     const { rows } = await query(
       `SELECT password_hash FROM users WHERE id=$1`,
-      [user.id],
+      [user.id]
     );
     const ok =
       rows[0]?.password_hash &&
@@ -562,7 +562,7 @@ app.post("/api/auth/password/login", async (req, res) => {
       INSERT INTO auth_sessions (id, user_id, session_token, auth_type, created_at, expires_at, is_active)
       VALUES ($1,$2,$3,'password',NOW(), NOW() + INTERVAL '5 minutes', true)
     `,
-      [pendingId, user.id, pendingId],
+      [pendingId, user.id, pendingId]
     );
 
     res.json({
@@ -611,8 +611,8 @@ app.post("/api/auth/register/begin", async (req, res) => {
           req.body.authMethod === "device"
             ? "platform"
             : req.body.authMethod === "pin"
-              ? "cross-platform"
-              : undefined, // Let browser choose for 'both'
+            ? "cross-platform"
+            : undefined, // Let browser choose for 'both'
       },
       excludeCredentials: [],
     });
@@ -622,7 +622,7 @@ app.post("/api/auth/register/begin", async (req, res) => {
     await query(
       `INSERT INTO auth_challenges (challenge, user_id, challenge_type, expires_at)
        VALUES ($1,$2,'registration', NOW() + INTERVAL '5 minutes')`,
-      [challengeBuf, user.id],
+      [challengeBuf, user.id]
     );
 
     res.json(options);
@@ -646,7 +646,7 @@ app.post("/api/auth/register/complete", async (req, res) => {
     const { rows } = await query(
       `SELECT * FROM auth_challenges
        WHERE challenge=$1 AND challenge_type='registration' AND is_used=false AND expires_at>NOW()`,
-      [challengeBuf],
+      [challengeBuf]
     );
     if (!rows.length) {
       return res.status(400).json({ error: "Invalid or expired challenge" });
@@ -669,10 +669,10 @@ app.post("/api/auth/register/complete", async (req, res) => {
     // Debug logging: Public key and credential ID (safe to log; DO NOT attempt private key)
     try {
       const credIdB64 = Buffer.from(
-        verification.registrationInfo.credentialID,
+        verification.registrationInfo.credentialID
       ).toString("base64url");
       const pubKeyB64 = Buffer.from(
-        verification.registrationInfo.credentialPublicKey,
+        verification.registrationInfo.credentialPublicKey
       ).toString("base64url");
       console.log("🔐 WebAuthn Registration - Storing public key");
       console.log({
@@ -682,7 +682,7 @@ app.post("/api/auth/register/complete", async (req, res) => {
         initialCounter: verification.registrationInfo.counter,
       });
       console.log(
-        "ℹ️ Private key never leaves the authenticator (TPM/Secure Enclave/security key). It is non-exportable and cannot be logged.",
+        "ℹ️ Private key never leaves the authenticator (TPM/Secure Enclave/security key). It is non-exportable and cannot be logged."
       );
     } catch (_) {}
 
@@ -704,7 +704,7 @@ app.post("/api/auth/register/complete", async (req, res) => {
     const token = jwt.sign(
       { userId: challengeRow.user_id },
       process.env.JWT_SECRET || "your-secret-key",
-      { expiresIn: "24h" },
+      { expiresIn: "24h" }
     );
     res.json({
       success: true,
@@ -747,15 +747,15 @@ app.post("/api/auth/login/begin", async (req, res) => {
           req.body.authMethod === "device"
             ? "platform"
             : req.body.authMethod === "pin"
-              ? "cross-platform"
-              : undefined, // Let browser choose for 'both'
+            ? "cross-platform"
+            : undefined, // Let browser choose for 'both'
       });
 
       const challengeBuf = Buffer.from(options.challenge, "base64url");
       await query(
         `INSERT INTO auth_challenges (challenge, user_id, challenge_type, expires_at)
          VALUES ($1,$2,'authentication', NOW() + INTERVAL '5 minutes')`,
-        [challengeBuf, user.id],
+        [challengeBuf, user.id]
       );
 
       return res.json({ ...options, mode: "username" });
@@ -771,15 +771,15 @@ app.post("/api/auth/login/begin", async (req, res) => {
         req.body.authMethod === "device"
           ? "platform"
           : req.body.authMethod === "pin"
-            ? "cross-platform"
-            : undefined, // Let browser choose for 'both'
+          ? "cross-platform"
+          : undefined, // Let browser choose for 'both'
     });
 
     const challengeBuf = Buffer.from(options.challenge, "base64url");
     await query(
       `INSERT INTO auth_challenges (challenge, user_id, challenge_type, expires_at)
        VALUES ($1,NULL,'authentication', NOW() + INTERVAL '5 minutes')`,
-      [challengeBuf],
+      [challengeBuf]
     );
 
     return res.json({ ...options, mode: "usernameless" });
@@ -803,7 +803,7 @@ app.post("/api/auth/login/complete", async (req, res) => {
     const { rows } = await query(
       `SELECT * FROM auth_challenges
        WHERE challenge=$1 AND challenge_type='authentication' AND is_used=false AND expires_at>NOW()`,
-      [challengeBuf],
+      [challengeBuf]
     );
     if (!rows.length) {
       return res.status(400).json({ error: "Invalid or expired challenge" });
@@ -838,11 +838,11 @@ app.post("/api/auth/login/complete", async (req, res) => {
     // Debug logging: signature and counters (no private key access)
     try {
       const credIdB64 = Buffer.from(credential.id, "base64url").toString(
-        "base64url",
+        "base64url"
       );
       const sigB64 = credential?.response?.signature || "(not provided)";
       console.log(
-        "🔑 WebAuthn Authentication - Verifying signature with stored public key",
+        "🔑 WebAuthn Authentication - Verifying signature with stored public key"
       );
       console.log({
         userId: stored.user_id,
@@ -851,13 +851,13 @@ app.post("/api/auth/login/complete", async (req, res) => {
         signature_base64url: sigB64,
       });
       console.log(
-        "ℹ️ Signature was created inside the authenticator using the non-exportable private key.",
+        "ℹ️ Signature was created inside the authenticator using the non-exportable private key."
       );
     } catch (_) {}
 
     await WebAuthnCredential.updateCounter(
       stored.credential_id,
-      verification.authenticationInfo.newCounter,
+      verification.authenticationInfo.newCounter
     );
     await User.updateLastLogin(stored.user_id);
     await query(`UPDATE auth_challenges SET is_used=true WHERE id=$1`, [
@@ -868,7 +868,7 @@ app.post("/api/auth/login/complete", async (req, res) => {
     const token = jwt.sign(
       { userId: stored.user_id },
       process.env.JWT_SECRET || "your-secret-key",
-      { expiresIn: "24h" },
+      { expiresIn: "24h" }
     );
     res.json({
       success: true,
