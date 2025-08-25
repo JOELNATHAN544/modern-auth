@@ -42,7 +42,16 @@ class WebAuthnCredential {
     return result.rows[0] || null;
   }
 
-
+  // Get all credentials for a user
+  static async findByUserId(userId) {
+    const sql = `
+      SELECT * FROM webauthn_credentials 
+      WHERE user_id = $1 AND is_active = true
+      ORDER BY created_at DESC
+    `;
+    const result = await query(sql, [userId]);
+    return result.rows;
+  }
 
   // Update credential counter
   static async updateCounter(credentialId, newCounter) {
