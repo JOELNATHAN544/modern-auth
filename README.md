@@ -83,7 +83,7 @@ This project implements all three parts of the authentication assignment:
 1. **Clone the repository**
 
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/JOELNATHAN544/modern-auth.git
    cd modern-auth
    ```
 
@@ -108,7 +108,8 @@ This project implements all three parts of the authentication assignment:
    ```bash
    # Start both server and client
    npm run dev
-
+   ```
+   ```baah
    # Or start them separately:
    npm run server  # Backend on port 3001
    npm run client  # Frontend on port 3000
